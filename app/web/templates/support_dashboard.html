@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block title %}میز کار پشتیبانی | Botsaller{% endblock %}
+{% block page_title %}میز کار و پنل پشتیبانی (Support Panel){% endblock %}
+{% block page_subtitle %}بررسی سفارش‌های معلق، رفع مغایرت و تحویل فایل به مشتریان{% endblock %}
+
+{% block sidebar_menu %}
+<li class="nav-item">
+    <a href="/support/dashboard" class="nav-link active">
+        <i class="bi bi-headset"></i> کارتابل پشتیبانی
+    </a>
+</li>
+{% if current_staff and current_staff.role == 'super_admin' %}
+<li class="nav-item mt-3 pt-3 border-top border-secondary border-opacity-25">
+    <a href="/admin/dashboard" class="nav-link text-warning">
+        <i class="bi bi-shield-lock"></i> بازگشت به پنل مدیریت کل
+    </a>
+</li>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<!-- Quick Stats Cards for Support -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card p-3 border-danger bg-danger-subtle shadow-sm">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <small class="text-danger fw-bold d-block">سفارش‌های نیازمند بررسی دستی (needs_review)</small>
+                    <h3 class="fw-bold text-danger mb-0 mt-1">{{ review_orders | length }}</h3>
+                </div>
+                <i class="bi bi-exclamation-octagon fs-2 text-danger"></i>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card p-3 border-warning bg-warning-subtle shadow-sm">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <small class="text-warning-emphasis fw-bold d-block">سفارش‌های در صف انجام (paid_in_queue)</small>
+                    <h3 class="fw-bold text-dark mb-0 mt-1">{{ queue_orders | length }}</h3>
+                </div>
+                <i class="bi bi-hourglass-split fs-2 text-warning"></i>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card p-3 border-info bg-info-subtle shadow-sm">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <small class="text-info-emphasis fw-bold d-block">واریزی‌های کریپتو در انتظار تایید</small>
+                    <h3 class="fw-bold text-info-emphasis mb-0 mt-1">{{ pending_txs | length }}</h3>
+                </div>
+                <i class="bi bi-coin fs-2 text-info"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Needs Review Section -->
+<div class="card p-4 mb-4 border-danger">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="fw-bold text-danger mb-0">
+            <i class="bi bi-exclamation-triangle-fill"></i> سفارش‌های نیازمند بررسی فوری و رفع مغایرت
+        </h6>
+        <span class="badge bg-danger">{{ review_orders | length }} مورد</span>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
+            <tr>
+                <th>کد سفارش</th>
+                <th>مشتری</th>
+                <th>سرویس</th>
+                <th>مبلغ</th>
+                <th>تاریخ ثبت</th>
+                <th>اقدام</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for order in review_orders %}
+            <tr>
+                <td><code>{{ order.order_code }}</code></td>
+                <td>{{ order.user.first_name or 'کاربر' }} (<code>{{ order.user.telegram_id }}</code>)</td>
+                <td>{{ order.category.get_title('fa') }}</td>
+                <td class="fw-bold">{{ order.amount_paid | format_currency }}</td>
+                <td><small class="text-muted">{{ order.created_at.strftime('%Y-%m-%d %H:%M') }}</small></td>
+                <td>
+                    <a href="/support/orders/{{ order.id }}" class="btn btn-sm btn-danger">
+                        <i class="bi bi-search"></i> بررسی و رفع مغایرت
+                    </a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" class="text-center py-3 text-muted">موردی نیازمند بررسی فوری نیست. ✅</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Paid in Queue Section -->
+<div class="card p-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="fw-bold text-primary mb-0">
+            <i class="bi bi-inbox text-primary"></i> سفارش‌های پرداخت‌شده و در صف انجام
+        </h6>
+        <span class="badge bg-primary">{{ queue_orders | length }} مورد</span>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
+            <tr>
+                <th>کد سفارش</th>
+                <th>مشتری</th>
+                <th>سرویس</th>
+                <th>مبلغ</th>
+                <th>تاریخ</th>
+                <th>اقدام جهت انجام و تحویل</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for order in queue_orders %}
+            <tr>
+                <td><code>{{ order.order_code }}</code></td>
+                <td>{{ order.user.first_name or 'کاربر' }}</td>
+                <td>{{ order.category.get_title('fa') }}</td>
+                <td class="fw-bold text-success">{{ order.amount_paid | format_currency }}</td>
+                <td><small class="text-muted">{{ order.created_at.strftime('%Y-%m-%d %H:%M') }}</small></td>
+                <td>
+                    <a href="/support/orders/{{ order.id }}" class="btn btn-sm btn-primary">
+                        <i class="bi bi-send-check"></i> آماده‌سازی و ارسال فایل
+                    </a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" class="text-center py-3 text-muted">سفارش جدیدی در صف انجام وجود ندارد.</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+

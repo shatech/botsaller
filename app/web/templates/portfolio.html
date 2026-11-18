@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block title %}مدیریت نمونه‌کارها | Botsaller{% endblock %}
+{% block page_title %}مدیریت گالری نمونه‌کارها{% endblock %}
+{% block page_subtitle %}بارگذاری نمونه‌های تحویل‌شده جهت نمایش ویترین در ربات تلگرام و مینی‌اپ{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Form to Upload Sample Work -->
+    <div class="col-lg-4">
+        <div class="card p-4">
+            <h6 class="fw-bold mb-3"><i class="bi bi-cloud-arrow-up text-primary"></i> بارگذاری نمونه‌کار جدید</h6>
+            <form action="/admin/portfolio/create" method="post" enctype="multipart/form-data">
+                
+                <!-- Image File Input -->
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">تصویر نمونه‌کار <span class="text-danger">*</span></label>
+                    <input type="file" name="image_file" id="image_file" class="form-control" accept="image/*" required onchange="previewImage(this)">
+                    <small class="text-muted">فرمت‌های مجاز: JPG, PNG, WEBP (کیفیت مناسب و واضح)</small>
+                </div>
+
+                <!-- Live Preview Box -->
+                <div class="mb-3 text-center" id="preview_container" style="display: none;">
+                    <div class="p-2 border rounded-3 bg-light">
+                        <img id="image_preview" src="" alt="پیش‌نمایش" class="img-fluid rounded shadow-sm" style="max-height: 200px; object-fit: contain;">
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">عنوان نمونه‌کار <span class="text-danger">*</span></label>
+                    <input type="text" name="title" class="form-control" placeholder="مثال: پاسپورت آلمان هولوگرام‌دار" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">اتصال به خدمت / دسته‌بندی (جهت ثبت سفارش سریع)</label>
+                    <select name="category_id" class="form-select">
+                        <option value="">-- بدون اتصال مستقیم (نمایش عمومی) --</option>
+                        {% for cat in categories %}
+                            {% if cat.is_leaf %}
+                            <option value="{{ cat.id }}">{{ cat.get_title('fa') }} ({{ cat.price }} USDT)</option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+                    <small class="text-muted d-block mt-1">در صورت انتخاب، دکمه «ثبت سفارش این سرویس» در زیر نمونه‌کار در ربات و مینی‌اپ فعال خواهد شد.</small>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">ترتیب نمایش (Sort Order)</label>
+                    <input type="number" name="sort_order" class="form-control" value="0">
+                    <small class="text-muted">اعداد کوچکتر ابتدا نمایش داده می‌شوند.</small>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">وضعیت انتشار</label>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" name="is_active" id="is_active" value="true" checked>
+                        <label class="form-check-label fw-bold" for="is_active">
+                            نمایش در ربات و مینی‌اپ
+                        </label>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">توضیحات و مشخصات نمونه‌کار (اختیاری)</label>
+                    <textarea name="description" class="form-control" rows="3" placeholder="توضیحات تکمیلی، مشخصات، ویژگی‌ها و رضایت مشتری..."></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-upload"></i> بارگذاری و ثبت در سامانه
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Portfolio Gallery List & Table -->
+    <div class="col-lg-8">
+        <div class="card p-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-bold mb-0"><i class="bi bi-images text-primary"></i> فهرست نمونه‌کارهای فعال</h6>
+                <span class="badge bg-secondary">{{ portfolio_items|length }} مورد</span>
+            </div>
+
+            {% if not portfolio_items %}
+            <div class="alert alert-info d-flex align-items-center gap-2 mb-0">
+                <i class="bi bi-info-circle-fill fs-5"></i>
+                <div>
+                    هنوز هیچ نمونه‌کاری بارگذاری نشده است. از فرم سمت راست می‌توانید نخستین نمونه‌کار را آپلود فرمایید.
+                </div>
+            </div>
+            {% else %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                    <tr>
+                        <th style="width: 80px;">تصویر</th>
+                        <th>عنوان و مشخصات</th>
+                        <th>سرویس متصل</th>
+                        <th style="width: 70px;">ترتیب</th>
+                        <th style="width: 90px;">وضعیت</th>
+                        <th style="width: 120px;" class="text-center">عملیات</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for item in portfolio_items %}
+                    <tr>
+                        <td>
+                            <a href="{{ item.image_path }}" target="_blank" title="مشاهده تصویر در اندازه اصلی">
+                                <img src="{{ item.image_path }}" alt="{{ item.title }}" class="rounded border shadow-sm" style="width: 60px; height: 60px; object-fit: cover;">
+                            </a>
+                        </td>
+                        <td>
+                            <div class="fw-bold">{{ item.title }}</div>
+                            {% if item.description %}
+                            <small class="text-muted d-block text-truncate" style="max-width: 250px;">{{ item.description }}</small>
+                            {% endif %}
+                            <small class="text-secondary" style="font-size: 0.75rem;">
+                                {{ item.created_at.strftime('%Y/%m/%d %H:%M') if item.created_at else '' }}
+                            </small>
+                        </td>
+                        <td>
+                            {% if item.category %}
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                                {{ item.category.get_title('fa') }}
+                            </span>
+                            {% else %}
+                            <span class="text-muted small">عمومی</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-light text-dark border">{{ item.sort_order }}</span>
+                        </td>
+                        <td>
+                            {% if item.is_active %}
+                            <span class="badge bg-success-subtle text-success border border-success-subtle">فعال</span>
+                            {% else %}
+                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">غیرفعال</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <div class="d-flex justify-content-center gap-1">
+                                <!-- Toggle Active -->
+                                <form action="/admin/portfolio/{{ item.id }}/toggle" method="post" class="d-inline">
+                                    <button type="submit" class="btn btn-sm {% if item.is_active %}btn-outline-warning{% else %}btn-outline-success{% endif %}" title="تغییر وضعیت فعال/غیرفعال">
+                                        <i class="bi {% if item.is_active %}bi-eye-slash{% else %}bi-eye{% endif %}"></i>
+                                    </button>
+                                </form>
+                                
+                                <!-- Delete Button -->
+                                <form action="/admin/portfolio/{{ item.id }}/delete" method="post" class="d-inline" onsubmit="return confirm('آیا از حذف این نمونه‌کار اطمینان دارید؟ تصویر نیز حذف خواهد شد.');">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="حذف نمونه‌کار">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function previewImage(input) {
+        const previewContainer = document.getElementById('preview_container');
+        const previewImg = document.getElementById('image_preview');
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                previewImg.src = e.target.result;
+                previewContainer.style.display = 'block';
+            };
+            reader.readAsDataURL(input.files[0]);
+        } else {
+            previewContainer.style.display = 'none';
+        }
+    }
+</script>
+{% endblock %}

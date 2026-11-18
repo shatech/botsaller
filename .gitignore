@@ -1,0 +1,47 @@
+# Environments & Credentials
+.env
+.env.local
+.env.*.local
+
+# Databases & Storage
+*.db
+*.sqlite
+*.sqlite3
+botsaller.db
+backups/
+
+# Customer Uploads & Generated QR Codes (Keep directories, ignore files)
+uploads/client_uploads/*
+!uploads/client_uploads/.gitkeep
+uploads/qr/*
+!uploads/qr/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Logs & System
+*.log
+.DS_Store
+Thumbs.db

@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+
+{% block title %}بررسی سفارش پشتیبانی {{ order.order_code }} | Botsaller{% endblock %}
+{% block page_title %}بررسی و تحویل سفارش توسط پشتیبان{% endblock %}
+{% block page_subtitle %}کد سفارش: {{ order.order_code }}{% endblock %}
+
+{% block sidebar_menu %}
+<li class="nav-item">
+    <a href="/support/dashboard" class="nav-link active">
+        <i class="bi bi-headset"></i> کارتابل پشتیبانی
+    </a>
+</li>
+{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+    <a href="/support/dashboard" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-right"></i> بازگشت به کارتابل پشتیبانی
+    </a>
+</div>
+
+<div class="row g-4">
+    <!-- Order Details -->
+    <div class="col-lg-7">
+        <div class="card p-4 mb-4">
+            <h6 class="fw-bold mb-3"><i class="bi bi-person-lines-fill text-primary"></i> اطلاعات مشتری و سفارش</h6>
+            <div class="row g-3">
+                <div class="col-sm-6">
+                    <small class="text-muted d-block">کد سفارش</small>
+                    <code class="fs-6">{{ order.order_code }}</code>
+                </div>
+                <div class="col-sm-6">
+                    <small class="text-muted d-block">سرویس</small>
+                    <span class="fw-bold">{{ order.category.get_title('fa') }}</span>
+                </div>
+                <div class="col-sm-6">
+                    <small class="text-muted d-block">نام مشتری</small>
+                    <span>{{ order.user.first_name or 'کاربر' }}</span>
+                </div>
+                <div class="col-sm-6">
+                    <small class="text-muted d-block">آیدی تلگرام</small>
+                    <code>{{ order.user.telegram_id }}</code>
+                </div>
+                <div class="col-sm-6">
+                    <small class="text-muted d-block">مبلغ پرداختی</small>
+                    <span class="fw-bold text-success">{{ order.amount_paid | format_currency }}</span>
+                </div>
+                <div class="col-sm-6">
+                    <small class="text-muted d-block">وضعیت جاری</small>
+                    <span class="badge bg-primary">{{ order.status | status_label }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Answers from Customer -->
+        <div class="card p-4">
+            <h6 class="fw-bold mb-3"><i class="bi bi-card-text text-primary"></i> مشخصات و مدارک ثبت‌شده توسط مشتری</h6>
+            <div class="list-group list-group-flush">
+                {% for key, val in order.form_data.items() %}
+                <div class="list-group-item px-0 py-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="fw-bold text-dark">{{ val.label or key }}</span>
+                        <span class="badge bg-light text-muted border small">{{ val.type }}</span>
+                    </div>
+                    
+                    {% if val.type == 'photo' %}
+                        {% set photo_url = val.web_url or ('/uploads/orders/' ~ val.local_path.split('orders')[-1].lstrip('\\/')) if val.local_path else None %}
+                        {% if photo_url %}
+                            <div class="mt-2 p-2 bg-light rounded border text-center">
+                                <a href="{{ photo_url }}" target="_blank">
+                                    <img src="{{ photo_url }}" alt="{{ val.label }}" class="img-fluid rounded shadow-sm border mb-2" style="max-height: 260px; object-fit: contain;">
+                                </a>
+                                <div>
+                                    <a href="{{ photo_url }}" class="btn btn-sm btn-outline-primary" target="_blank" download>
+                                        <i class="bi bi-download"></i> دانلود تصویر اصلی مدرک / چهره
+                                    </a>
+                                </div>
+                            </div>
+                        {% else %}
+                            <span class="text-muted small">تصویر یافت نشد</span>
+                        {% endif %}
+                    {% elif val.type == 'document' %}
+                        {% set doc_url = val.web_url or ('/uploads/orders/' ~ val.local_path.split('orders')[-1].lstrip('\\/')) if val.local_path else None %}
+                        {% if doc_url %}
+                            <div class="mt-2 p-3 bg-light rounded border d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="bi bi-file-earmark-pdf fs-4 text-danger me-2"></i>
+                                    <span class="fw-bold">{{ val.value }}</span>
+                                </div>
+                                <a href="{{ doc_url }}" class="btn btn-sm btn-outline-primary" target="_blank" download>
+                                    <i class="bi bi-download"></i> دانلود فایل
+                                </a>
+                            </div>
+                        {% else %}
+                            <span class="text-muted small">سند موجود نیست</span>
+                        {% endif %}
+                    {% else %}
+                        <div class="bg-light p-2 rounded text-dark fw-bold border-start border-3 border-primary">{{ val.value or '-' }}</div>
+                    {% endif %}
+                </div>
+                {% else %}
+                <div class="text-muted small py-3 text-center">فیلدی در این فرم ثبت نشده است.</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Fulfillment & Actions -->
+    <div class="col-lg-5">
+        <!-- Delivery Box -->
+        <div class="card p-4 mb-4 border-success">
+            <h6 class="fw-bold text-success mb-2">
+                <i class="bi bi-telegram"></i> آپلود فایل خروجی و تحویل فوری به کاربر
+            </h6>
+            <small class="text-muted d-block mb-3">
+                به محض انتخاب فایل و ثبت، ربات تلگرام فایل را برای کاربر ارسال کرده و در میز کار او ذخیره می‌نماید.
+            </small>
+
+            <form action="/support/orders/{{ order.id }}/deliver" method="post" enctype="multipart/form-data">
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">فایل خروجی نهایی</label>
+                    <input type="file" name="file" class="form-control">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">پیام تکمیلی برای مشتری</label>
+                    <textarea name="admin_notes" class="form-control" rows="3" placeholder="توضیحات و راهنمای استفاده..."></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-success w-100" onclick="return confirm('آیا از ارسال فایل و تحویل نهایی سفارش مطمئن هستید؟');">
+                    <i class="bi bi-send"></i> تحویل نهایی به تلگرام مشتری
+                </button>
+            </form>
+        </div>
+
+        <!-- Status Box -->
+        <div class="card p-4">
+            <h6 class="fw-bold mb-3"><i class="bi bi-flag text-warning"></i> اعلام وضعیت سفارش</h6>
+            <form action="/support/orders/{{ order.id }}/status" method="post">
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">تغییر وضعیت</label>
+                    <select name="new_status" class="form-select">
+                        <option value="in_progress" {% if order.status == 'in_progress' %}selected{% endif %}>در حال انجام توسط من ⚙️</option>
+                        <option value="needs_review" {% if order.status == 'needs_review' %}selected{% endif %}>نیازمند بررسی و رفع مغایرت ⚠️</option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">یادداشت پشتیبانی</label>
+                    <textarea name="admin_notes" class="form-control" rows="2" placeholder="توضیح مغایرت یا پیگیری...">{{ order.admin_notes or '' }}</textarea>
+                </div>
+
+                <button type="submit" class="btn btn-outline-primary w-100">
+                    <i class="bi bi-check2"></i> ثبت وضعیت
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

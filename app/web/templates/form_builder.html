@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block title %}طراحی فرم پویا: {{ category.get_title('fa') }} | Botsaller{% endblock %}
+{% block page_title %}طراحی فرم پویا (Dynamic Form Builder){% endblock %}
+{% block page_subtitle %}تعریف مراحل و سوالات اختصاصی سفارش برای «{{ category.get_title('fa') }}»{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+    <a href="/admin/categories" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-right"></i> بازگشت به لیست دسته‌بندی‌ها
+    </a>
+</div>
+
+<div class="row g-4">
+    <!-- Form to Add Field -->
+    <div class="col-lg-4">
+        <div class="card p-4">
+            <h6 class="fw-bold mb-3"><i class="bi bi-plus-circle text-primary"></i> افزودن فیلد سوال جدید</h6>
+            <form action="/admin/categories/{{ category.id }}/fields/add" method="post">
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">متن سوال به زبان فارسی <span class="text-danger">*</span></label>
+                    <input type="text" name="label_fa" class="form-control" placeholder="مثال: لطفاً آدرس ایمیل اکانت خود را وارد کنید" required>
+                    <small class="text-muted">این متن عیناً در ربات تلگرام از کاربر پرسیده خواهد شد.</small>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">کلید شناسه انگلیسی (Field Key) <span class="text-danger">*</span></label>
+                    <input type="text" name="field_key" class="form-control font-monospace" placeholder="e.g. email, uuid, national_id" required>
+                    <small class="text-muted">شناسه انگلیسی برای ذخیره‌سازی داده در سیستم.</small>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">نوع دریافت اطلاعات (Field Type) <span class="text-danger">*</span></label>
+                    <select name="field_type" id="field_type" class="form-select" onchange="checkFieldType(this)">
+                        <option value="text">متن کوتاه / توضیحات (text)</option>
+                        <option value="number">مقدار عددی (number)</option>
+                        <option value="date">تاریخ (date)</option>
+                        <option value="select">لیست انتخابی چندگزینه‌ای (select)</option>
+                        <option value="photo">تصویر / عکس (photo)</option>
+                        <option value="document">فایل / سند پیوست (document)</option>
+                    </select>
+                </div>
+
+                <!-- Select Options Box -->
+                <div class="mb-3" id="options_group" style="display: none;">
+                    <label class="form-label small fw-bold">گزینه‌های لیست انتخابی (هر خط یک گزینه)</label>
+                    <textarea name="options_raw" class="form-control" rows="3" placeholder="یک ماهه&#10;سه ماهه&#10;یک ساله"></textarea>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">الگوی اعتبارسنجی عبارات باقاعده (Regex) - اختیاری</label>
+                    <input type="text" name="validation_regex" class="form-control font-monospace" placeholder="^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">ترتیب نمایش (Sort Order)</label>
+                    <input type="number" name="sort_order" class="form-control" value="{{ fields | length }}">
+                </div>
+
+                <div class="mb-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" name="is_required" id="is_required" value="true" checked>
+                        <label class="form-check-label fw-bold" for="is_required">
+                            پاسخ به این سوال اجباری است
+                        </label>
+                    </div>
+                    <small class="text-muted">اگر غیرفعال باشد، دکمه «رد کردن این مرحله» در تلگرام به کاربر نمایش داده می‌شود.</small>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-save"></i> افزودن فیلد به فرم
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Fields List & Preview -->
+    <div class="col-lg-8">
+        <div class="card p-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-bold mb-0">
+                    <i class="bi bi-ui-checks-grid text-primary"></i> فیلدهای فعال در فرآیند سفارش ({{ fields | length }} فیلد)
+                </h6>
+                <span class="badge bg-light text-dark border">
+                    قیمت محصول: {{ category.price | format_currency }}
+                </span>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                    <tr>
+                        <th>ترتیب</th>
+                        <th>متن سوال (فارسی)</th>
+                        <th>کلید</th>
+                        <th>نوع ورودی</th>
+                        <th>وضعیت</th>
+                        <th>عملیات</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for f in fields %}
+                    <tr>
+                        <td><span class="badge bg-secondary">{{ loop.index }}</span></td>
+                        <td class="fw-bold">{{ f.get_label('fa') }}</td>
+                        <td><code>{{ f.field_key }}</code></td>
+                        <td>
+                            <span class="badge bg-info-subtle text-info border">
+                                {{ f.field_type | field_type_label }}
+                            </span>
+                            {% if f.options %}
+                            <div class="small text-muted mt-1">
+                                گزینه‌ها: {{ f.options | join('، ') }}
+                            </div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if f.is_required %}
+                            <span class="badge bg-danger-subtle text-danger">اجباری</span>
+                            {% else %}
+                            <span class="badge bg-light text-muted border">اختیاری (دارای رد کردن)</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <form action="/admin/categories/{{ category.id }}/fields/{{ f.id }}/delete" method="post" onsubmit="return confirm('آیا از حذف این فیلد اطمینان دارید؟');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                    <i class="bi bi-trash"></i> حذف
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center py-4 text-muted">
+                            هنوز هیچ فیلدی برای این سرویس تعریف نشده است. از فرم روبرو فیلدهای دریافت مشخصات را اضافه کنید.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function checkFieldType(elem) {
+    document.getElementById('options_group').style.display = elem.value === 'select' ? 'block' : 'none';
+}
+</script>
+{% endblock %}
+

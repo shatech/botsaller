@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block title %}مدیریت دسته‌بندی‌ها و خدمات | Botsaller{% endblock %}
+{% block page_title %}مدیریت درختی دسته‌بندی‌ها{% endblock %}
+{% block page_subtitle %}تعریف سطوح نامحدود دسته‌ها، قیمت‌گذاری و اتصال به فرم‌ساز اختصاصی{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Form to Create Category -->
+    <div class="col-lg-4">
+        <div class="card p-4">
+            <h6 class="fw-bold mb-3"><i class="bi bi-folder-plus text-primary"></i> ایجاد دسته‌بندی / زیردسته جدید</h6>
+            <form action="/admin/categories/create" method="post">
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">عنوان فارسی دسته‌بندی <span class="text-danger">*</span></label>
+                    <input type="text" name="title_fa" class="form-control" placeholder="مثال: کانفیگ اختصاصی V2Ray" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">دسته والد (سطح بالاتر)</label>
+                    <select name="parent_id" class="form-select">
+                        <option value="">-- دسته اصلی (Root Category) --</option>
+                        {% for cat in categories %}
+                            {% if not cat.is_leaf %}
+                            <option value="{{ cat.id }}">{{ cat.get_title('fa') }} (ID: {{ cat.id }})</option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+                    <small class="text-muted d-block mt-1">اگر این گزینه خالی باشد، دسته اصلی بدون والد خواهد بود.</small>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">نوع دسته‌بندی</label>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" name="is_leaf" id="is_leaf" value="true" onchange="togglePrice(this)">
+                        <label class="form-check-label fw-bold" for="is_leaf">
+                            دسته نهایی قابل سفارش (دارای فرم و قیمت)
+                        </label>
+                    </div>
+                    <small class="text-muted">در صورت فعال بودن، کاربر می‌تواند این محصول را خریداری کند و فرم آن فعال می‌شود.</small>
+                </div>
+
+                <div class="mb-3" id="price_group" style="display: none;">
+                    <label class="form-label small fw-bold">قیمت پایه (USDT)</label>
+                    <div class="input-group">
+                        <input type="number" step="0.01" name="price" class="form-control" value="0.0">
+                        <span class="input-group-text">USDT</span>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">ترتیب نمایش (Sort Order)</label>
+                    <input type="number" name="sort_order" class="form-control" value="0">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">توضیحات و راهنمای سفارش (اختیاری)</label>
+                    <textarea name="description_fa" class="form-control" rows="3" placeholder="توضیحات لازم برای کاربر در تلگرام..."></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-plus-circle"></i> ذخیره دسته‌بندی
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tree View & Table -->
+    <div class="col-lg-8">
+        <div class="card p-4">
+            <h6 class="fw-bold mb-3"><i class="bi bi-list-nested text-primary"></i> ساختار درختی دسته‌ها و سرویس‌ها</h6>
+            
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                    <tr>
+                        <th>شناسه</th>
+                        <th>عنوان</th>
+                        <th>دسته والد</th>
+                        <th>نوع</th>
+                        <th>قیمت</th>
+                        <th>عملیات</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for cat in categories %}
+                    <tr>
+                        <td><code>#{{ cat.id }}</code></td>
+                        <td>
+                            <span class="fw-bold">
+                                {% if cat.is_leaf %}✨{% else %}📁{% endif %}
+                                {{ cat.get_title('fa') }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if cat.parent_id %}
+                                <span class="badge bg-light text-dark border">
+                                    {{ cat_map.get(cat.parent_id, cat.parent_id) }}
+                                </span>
+                            {% else %}
+                                <span class="badge bg-secondary-subtle text-secondary">دسته اصلی</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if cat.is_leaf %}
+                                <span class="badge bg-success-subtle text-success">سرویس نهایی</span>
+                            {% else %}
+                                <span class="badge bg-primary-subtle text-primary">پوشه / دارای زیردسته</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if cat.is_leaf %}
+                                <span class="fw-bold text-success">{{ cat.price | format_currency }}</span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="d-flex gap-1">
+                                {% if cat.is_leaf %}
+                                <a href="/admin/categories/{{ cat.id }}/fields" class="btn btn-sm btn-outline-primary" title="طراحی فرم پویا">
+                                    <i class="bi bi-ui-checks"></i> فرم‌ساز
+                                </a>
+                                {% endif %}
+
+                                <form action="/admin/categories/{{ cat.id }}/delete" method="post" onsubmit="return confirm('آیا از حذف این دسته و تمامی زیردسته‌های آن اطمینان دارید؟');" style="display:inline;">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="حذف">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center py-4 text-muted">دسته‌بندی ثبت نشده است. از فرم روبرو ایجاد کنید.</td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function togglePrice(elem) {
+    document.getElementById('price_group').style.display = elem.checked ? 'block' : 'none';
+}
+</script>
+{% endblock %}
+

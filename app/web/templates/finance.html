@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}تنظیمات مالی و کیف‌پول | Botsaller{% endblock %}
+{% block page_title %}مدیریت مالی و درگاه کریپتو{% endblock %}
+{% block page_subtitle %}پیکربندی آدرس کیف پول سرد، کلیدهای API بلاکچین و شارژ دستی کاربران{% endblock %}
+
+{% block content %}
+<div class="row g-4 mb-4">
+    <!-- Cold Wallet & API Settings -->
+    <div class="col-lg-6">
+        <div class="card p-4">
+            <h6 class="fw-bold mb-3"><i class="bi bi-gear text-primary"></i> تنظیمات کیف پول سرد و کاوشگر بلاکچین</h6>
+            <form action="/admin/finance/settings" method="post">
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">آدرس کیف پول سرد TRC20 (ترون - تتر) <span class="text-danger">*</span></label>
+                    <input type="text" name="cold_wallet_trc20" class="form-control font-monospace" value="{{ cold_trc20 }}" required>
+                    <small class="text-muted">تمام واریزی‌های TRC20 مشتریان به این آدرس هدایت خواهد شد.</small>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">آدرس کیف پول سرد BEP20 (بایننس اسمارت چین - تتر) <span class="text-danger">*</span></label>
+                    <input type="text" name="cold_wallet_bep20" class="form-control font-monospace" value="{{ cold_bep20 }}" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">کلید API کاوشگر ترون (TronGrid API Key)</label>
+                    <input type="text" name="trongrid_api_key" class="form-control font-monospace" value="{{ api_key_tron }}" placeholder="TRON-PRO-API-KEY">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">کلید API کاوشگر بایننس (BscScan API Key)</label>
+                    <input type="text" name="bscscan_api_key" class="form-control font-monospace" value="{{ api_key_bsc }}" placeholder="Your BscScan API Key">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">شناسه عددی گروه یا کانال اپراتورها (Telegram Operator Chat ID)</label>
+                    <input type="text" name="operator_chat_id" class="form-control font-monospace" value="{{ operator_chat }}" placeholder="-1001234567890">
+                    <small class="text-muted">هنگام پرداخت موفق، اعلان فوری سفارش به همراه فایل‌ها به این چت ارسال می‌شود.</small>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-check2-circle"></i> ذخیره تنظیمات مالی
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Manual Balance Adjustment Form -->
+    <div class="col-lg-6">
+        <div class="card p-4">
+            <h6 class="fw-bold mb-3"><i class="bi bi-cash-coin text-success"></i> افزایش یا کاهش دستی موجودی کاربر</h6>
+            <form action="/admin/finance/adjust" method="post">
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">انتخاب کاربر</label>
+                    <select name="user_id" class="form-select" required>
+                        <option value="">-- انتخاب از میان کاربران --</option>
+                        {% for u in users %}
+                        <option value="{{ u.id }}">
+                            {{ u.first_name or 'کاربر' }} (ID: {{ u.telegram_id }}) - موجودی فعلی: {{ u.wallet_balance | format_currency }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">مبلغ تغییر (USDT) <span class="text-danger">*</span></label>
+                    <div class="input-group">
+                        <input type="number" step="0.01" name="amount" class="form-control" placeholder="برای افزایش مقدار مثبت و برای کاهش منفی وارد کنید (مثال: 15 یا -5)" required>
+                        <span class="input-group-text">USDT</span>
+                    </div>
+                    <small class="text-muted">برای افزایش، عدد مثبت (مثلاً 20) و برای کسر، علامت منفی (مثلاً -10) وارد کنید.</small>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">علت و توضیحات تغییر موجودی <span class="text-danger">*</span></label>
+                    <textarea name="reason" class="form-control" rows="2" placeholder="علت واریز تشویقی، بازگشت وجه یا تسویه دستی..." required></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-success w-100" onclick="return confirm('آیا از اعمال این تغییر در حساب مالی کاربر اطمینان دارید؟');">
+                    <i class="bi bi-arrow-left-right"></i> اعمال تغییر و ثبت در لاگ مالی
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Transactions Table -->
+<div class="card p-4">
+    <h6 class="fw-bold mb-3"><i class="bi bi-clock-history text-primary"></i> تاریخچه جامع تراکنش‌های کیف پول</h6>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
+            <tr>
+                <th>شناسه</th>
+                <th>کاربر</th>
+                <th>نوع تراکنش</th>
+                <th>مبلغ</th>
+                <th>شبکه</th>
+                <th>هش تراکنش (TXID)</th>
+                <th>وضعیت</th>
+                <th>تاریخ</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for tx in transactions %}
+            <tr>
+                <td><code>#{{ tx.id }}</code></td>
+                <td>
+                    <div class="fw-bold">{{ tx.user.first_name or 'کاربر' }}</div>
+                    <small class="text-muted"><code>{{ tx.user.telegram_id }}</code></small>
+                </td>
+                <td>
+                    <span class="badge bg-light text-dark border">
+                        {{ tx.type | tx_type_label }}
+                    </span>
+                </td>
+                <td class="fw-bold {% if tx.type in ['deposit', 'admin_adjustment'] %}text-success{% else %}text-danger{% endif %}">
+                    {{ tx.amount | format_currency }}
+                </td>
+                <td><span class="badge bg-secondary-subtle text-secondary">{{ tx.network }}</span></td>
+                <td>
+                    {% if tx.tx_hash %}
+                    <code title="{{ tx.tx_hash }}">{{ tx.tx_hash[:18] }}...</code>
+                    {% else %}
+                    <span class="text-muted">-</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if tx.status == 'confirmed' %}
+                    <span class="badge bg-success badge-status">تایید شده ✅</span>
+                    {% elif tx.status == 'pending' %}
+                    <span class="badge bg-warning text-dark badge-status">در انتظار ⏳</span>
+                    {% else %}
+                    <span class="badge bg-danger badge-status">{{ tx.status }}</span>
+                    {% endif %}
+                </td>
+                <td><small class="text-muted">{{ tx.created_at.strftime('%Y-%m-%d %H:%M') }}</small></td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="8" class="text-center py-4 text-muted">تراکنشی ثبت نشده است.</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+

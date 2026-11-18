@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}مدیریت همکاران و پشتیبانی | Botsaller{% endblock %}
+{% block page_title %}مدیریت همکاران و اپراتورها{% endblock %}
+{% block page_subtitle %}ایجاد دسترسی پشتیبانی و فعال/غیرفعال‌سازی حساب‌های کاربری{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Create Staff Form -->
+    <div class="col-lg-4">
+        <div class="card p-4">
+            <h6 class="fw-bold mb-3"><i class="bi bi-person-plus text-primary"></i> ساخت حساب کاربری همکار جدید</h6>
+            <form action="/admin/staff/create" method="post">
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">نام کاربری (انگلیسی) <span class="text-danger">*</span></label>
+                    <input type="text" name="username" class="form-control font-monospace" placeholder="e.g. support_ali" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">رمز عبور اولیه <span class="text-danger">*</span></label>
+                    <input type="password" name="password" class="form-control" placeholder="••••••••" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">سطح دسترسی (نقش) <span class="text-danger">*</span></label>
+                    <select name="role" class="form-select">
+                        <option value="support" selected>پشتیبان و اپراتور سفارش‌ها (support)</option>
+                        <option value="super_admin">مدیر کل سیستم (super_admin)</option>
+                    </select>
+                    <small class="text-muted d-block mt-1">اپراتورهای پشتیبانی به تنظیمات کیف پول سرد، حذف دسته‌ها و مدیریت کارمندان دسترسی نخواهند داشت.</small>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-plus-lg"></i> ایجاد حساب کاربری
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Staff List Table -->
+    <div class="col-lg-8">
+        <div class="card p-4">
+            <h6 class="fw-bold mb-3"><i class="bi bi-people text-primary"></i> لیست همکاران و مدیران سیستم</h6>
+            
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                    <tr>
+                        <th>شناسه</th>
+                        <th>نام کاربری</th>
+                        <th>نقش و دسترسی</th>
+                        <th>وضعیت حساب</th>
+                        <th>تاریخ ایجاد</th>
+                        <th>عملیات</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for staff in staff_list %}
+                    <tr>
+                        <td><code>#{{ staff.id }}</code></td>
+                        <td class="fw-bold font-monospace">{{ staff.username }}</td>
+                        <td>
+                            {% if staff.role == 'super_admin' %}
+                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle">مدیر کل (Super Admin)</span>
+                            {% else %}
+                            <span class="badge bg-info-subtle text-info border border-info-subtle">پشتیبان (Support Agent)</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if staff.is_active %}
+                            <span class="badge bg-success badge-status">فعال ✅</span>
+                            {% else %}
+                            <span class="badge bg-secondary badge-status">غیرفعال ❌</span>
+                            {% endif %}
+                        </td>
+                        <td><small class="text-muted">{{ staff.created_at.strftime('%Y-%m-%d') }}</small></td>
+                        <td>
+                            {% if staff.role != 'super_admin' %}
+                            <form action="/admin/staff/{{ staff.id }}/toggle" method="post" style="display:inline;">
+                                <button type="submit" class="btn btn-sm {% if staff.is_active %}btn-outline-warning{% else %}btn-outline-success{% endif %}">
+                                    {% if staff.is_active %}
+                                    <i class="bi bi-pause-circle"></i> غیرفعال‌سازی
+                                    {% else %}
+                                    <i class="bi bi-play-circle"></i> فعال‌سازی
+                                    {% endif %}
+                                </button>
+                            </form>
+                            {% else %}
+                            <span class="text-muted small">غیرقابل تغییر</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}مدیریت سفارش‌ها | Botsaller{% endblock %}
+{% block page_title %}مدیریت سفارش‌ها{% endblock %}
+{% block page_subtitle %}بررسی فرآیند سفارش‌ها، پیگیری مشتریان و تحویل نهایی خروجی{% endblock %}
+
+{% block content %}
+<!-- Status Filter Pills -->
+<div class="d-flex gap-2 mb-4 flex-wrap">
+    <a href="/admin/orders" class="btn btn-sm {% if not current_status %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+        همه سفارش‌ها ({{ counts.total }})
+    </a>
+    <a href="/admin/orders?status_filter=paid_in_queue" class="btn btn-sm {% if current_status == 'paid_in_queue' %}btn-warning text-dark{% else %}btn-outline-warning text-dark{% endif %}">
+        در صف انجام ({{ counts.paid_in_queue }})
+    </a>
+    <a href="/admin/orders?status_filter=needs_review" class="btn btn-sm {% if current_status == 'needs_review' %}btn-danger{% else %}btn-outline-danger{% endif %}">
+        نیازمند بررسی پشتیبانی ({{ counts.needs_review }})
+    </a>
+    <a href="/admin/orders?status_filter=completed" class="btn btn-sm {% if current_status == 'completed' %}btn-success{% else %}btn-outline-success{% endif %}">
+        تکمیل و تحویل شده ({{ counts.completed }})
+    </a>
+</div>
+
+<div class="card p-4">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
+            <tr>
+                <th>کد پیگیری</th>
+                <th>مشتری</th>
+                <th>سرویس انتخابی</th>
+                <th>مبلغ پرداختی</th>
+                <th>وضعیت سفارش</th>
+                <th>تاریخ ثبت</th>
+                <th>عملیات</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for order in orders %}
+            <tr>
+                <td><code>{{ order.order_code }}</code></td>
+                <td>
+                    <div class="fw-bold">{{ order.user.first_name or 'کاربر' }}</div>
+                    <small class="text-muted">ID: <code>{{ order.user.telegram_id }}</code></small>
+                </td>
+                <td>{{ order.category.get_title('fa') }}</td>
+                <td class="fw-bold text-success">{{ order.amount_paid | format_currency }}</td>
+                <td>
+                    {% if order.status == 'paid_in_queue' %}
+                    <span class="badge bg-warning text-dark badge-status">در صف انجام ⏳</span>
+                    {% elif order.status == 'in_progress' %}
+                    <span class="badge bg-info text-dark badge-status">در حال پردازش ⚙️</span>
+                    {% elif order.status == 'completed' %}
+                    <span class="badge bg-success badge-status">تحویل شده ✅</span>
+                    {% elif order.status == 'needs_review' %}
+                    <span class="badge bg-danger badge-status">نیازمند بررسی ⚠️</span>
+                    {% elif order.status == 'cancelled' %}
+                    <span class="badge bg-secondary badge-status">لغو شده ❌</span>
+                    {% else %}
+                    <span class="badge bg-light text-dark border badge-status">{{ order.status }}</span>
+                    {% endif %}
+                </td>
+                <td><small class="text-muted">{{ order.created_at.strftime('%Y-%m-%d %H:%M') }}</small></td>
+                <td>
+                    <a href="/admin/orders/{{ order.id }}" class="btn btn-sm btn-primary">
+                        <i class="bi bi-box-arrow-up-right"></i> مدیریت و تحویل
+                    </a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="7" class="text-center py-4 text-muted">سفارشی با این فیلتر یافت نشد.</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+

@@ -1,0 +1,2174 @@
+<!DOCTYPE html>
+<html lang="{{ initial_lang | default('en') }}" dir="{{ initial_dir | default('ltr') }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Botsaller SuperApp</title>
+
+    <!-- Telegram WebApp SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+    <!-- Vazirmatn Persian Font -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css">
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Vazirmatn', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+                    },
+                    colors: {
+                        tg: {
+                            bg: 'var(--tg-theme-bg-color, #0f172a)',
+                            text: 'var(--tg-theme-text-color, #f8fafc)',
+                            hint: 'var(--tg-theme-hint-color, #94a3b8)',
+                            link: 'var(--tg-theme-link-color, #38bdf8)',
+                            button: 'var(--tg-theme-button-color, #3b82f6)',
+                            buttonText: 'var(--tg-theme-button-text-color, #ffffff)',
+                            secondary: 'var(--tg-theme-secondary-bg-color, #1e293b)',
+                        },
+                        brand: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            emerald: '#10b981',
+                            amber: '#f59e0b',
+                            rose: '#f43f5e'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- QRious for Crypto QR Generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+
+    <!-- Vue 3 CDN -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+
+    <style>
+        * {
+            -webkit-tap-highlight-color: transparent;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--tg-theme-bg-color, #0f172a);
+            color: var(--tg-theme-text-color, #f8fafc);
+            overflow-x: hidden;
+            padding-bottom: 85px;
+            font-family: 'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        /* Glassmorphism & Custom styling */
+        .glass-card {
+            background: rgba(30, 41, 59, 0.75);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .glass-card-light {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .glow-accent {
+            box-shadow: 0 0 25px -5px rgba(59, 130, 246, 0.35);
+        }
+
+        .glow-green {
+            box-shadow: 0 0 25px -5px rgba(16, 185, 129, 0.35);
+        }
+
+        /* Hide scrollbars for chips */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        /* Shimmer loading */
+        @keyframes shimmer {
+            100% {
+                transform: translateX(100%);
+            }
+        }
+        .shimmer {
+            position: relative;
+            overflow: hidden;
+        }
+        .shimmer::after {
+            position: absolute;
+            top: 0; right: 0; bottom: 0; left: 0;
+            transform: translateX(-100%);
+            background-image: linear-gradient(
+                90deg,
+                rgba(255, 255, 255, 0) 0,
+                rgba(255, 255, 255, 0.05) 20%,
+                rgba(255, 255, 255, 0.1) 60%,
+                rgba(255, 255, 255, 0)
+            );
+            animation: shimmer 2s infinite;
+            content: '';
+        }
+    </style>
+</head>
+<body class="min-h-screen text-slate-100 selection:bg-blue-500 selection:text-white">
+
+<div id="app" class="max-w-md mx-auto relative px-3.5 pt-3 pb-6">
+
+    <!-- 1. LOADING STATE -->
+    <div v-if="authChecking" class="min-h-[85vh] flex flex-col items-center justify-center space-y-4 text-center">
+        <div class="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        <div class="space-y-1">
+            <h3 class="text-sm font-bold text-white">[[ t('auth_loading_title') ]]</h3>
+            <p class="text-[11px] text-slate-400">[[ t('auth_loading_desc') ]]</p>
+        </div>
+    </div>
+
+    <!-- 2. BLOCKED ACCESS SCREEN (IF OPENED OUTSIDE TELEGRAM) -->
+    <div v-else-if="!isAuthorized" class="min-h-[85vh] flex flex-col items-center justify-center text-center px-4 py-8 space-y-5">
+        <div class="w-20 h-20 rounded-3xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-4xl shadow-xl shadow-rose-500/10 animate-pulse">
+            🔒
+        </div>
+        <div class="space-y-2 max-w-xs">
+            <h2 class="text-base font-black text-white">[[ t('auth_blocked_title') ]]</h2>
+            <p class="text-xs text-slate-400 leading-relaxed">
+                [[ t('auth_blocked_desc') ]]
+            </p>
+        </div>
+
+        <div class="w-full max-w-xs p-4 rounded-2xl bg-slate-900 border border-slate-800 text-[11px] text-start space-y-2">
+            <div class="font-bold text-amber-400 flex items-center gap-1.5">
+                <span>⚠️</span>
+                <span>[[ t('auth_guide_title') ]]</span>
+            </div>
+            <p class="text-slate-400 leading-relaxed">
+                [[ t('auth_guide_step1') ]]<br>
+                [[ t('auth_guide_step2') ]]
+            </p>
+        </div>
+
+        <a :href="'https://t.me/' + botUsername" class="w-full max-w-xs py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-bold shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 active:scale-95 transition-all">
+            <span>[[ t('btn_open_bot') ]]</span>
+        </a>
+    </div>
+
+    <!-- 3. AUTHORIZED USER VIEW -->
+    <div v-else>
+
+        <!-- Top Header -->
+        <header class="flex items-center justify-between py-2 mb-4">
+            <div class="flex items-center gap-2.5">
+                <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center font-bold text-white shadow-md shadow-blue-500/30">
+                    [[ userInitial ]]
+                </div>
+                <div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-sm font-bold text-white">[[ userProfile.first_name || t('user_default_name') ]]</span>
+                        <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    </div>
+                    <div class="text-[11px] font-mono text-blue-300 font-semibold">[[ t('user_id_label') ]] [[ userProfile.telegram_id ]]</div>
+                </div>
+            </div>
+
+            <!-- Wallet Quick Pill -->
+            <button @click="activeTab = 'wallet'; triggerHaptic('light')" class="flex items-center gap-2 bg-slate-800/90 border border-slate-700/80 px-3 py-1.5 rounded-full shadow-sm hover:border-blue-500/50 transition-all">
+                <div class="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[10px] font-bold">₮</div>
+                <span class="text-xs font-black tracking-tight text-emerald-400 font-mono">[[ formatNumber(userProfile.wallet_balance) ]]</span>
+                <span class="text-[10px] text-slate-400">USDT</span>
+            </button>
+        </header>
+
+        <!-- TOAST NOTIFICATION -->
+        <transition enter-active-class="transition duration-300 ease-out" enter-from-class="transform -translate-y-4 opacity-0" enter-to-class="transform translate-y-0 opacity-100" leave-active-class="transition duration-200 ease-in" leave-from-class="transform translate-y-0 opacity-100" leave-to-class="transform -translate-y-4 opacity-0">
+            <div v-if="toast.show" :class="toast.type === 'error' ? 'bg-rose-500/90 text-white' : (toast.type === 'success' ? 'bg-emerald-500/90 text-white' : 'bg-blue-600/90 text-white')" class="fixed top-4 left-4 right-4 max-w-sm mx-auto z-50 px-4 py-3 rounded-2xl shadow-xl backdrop-blur-md flex items-center justify-between text-xs font-medium">
+                <div class="flex items-center gap-2">
+                    <span>[[ toast.message ]]</span>
+                </div>
+                <button @click="toast.show = false" class="text-white/80 hover:text-white px-1 text-sm">✕</button>
+            </div>
+        </transition>
+
+        <!-- ========================================== -->
+        <!-- TAB 1: کاتالوگ و خدمات (CATALOG / STORE) -->
+        <!-- ========================================== -->
+        <main v-if="activeTab === 'catalog'" class="space-y-4">
+            
+            <!-- Hero Promo Banner -->
+            <div class="glass-card relative rounded-3xl p-4 overflow-hidden border border-blue-500/20 glow-accent bg-gradient-to-br from-slate-900 via-blue-950/40 to-slate-900">
+                <div class="absolute -left-8 -bottom-8 w-32 h-32 bg-blue-500/20 rounded-full blur-2xl pointer-events-none"></div>
+                <div class="flex items-center justify-between relative z-10">
+                    <div class="space-y-1 max-w-[70%]">
+                        <span class="inline-block px-2.5 py-0.5 rounded-full bg-blue-500/20 text-blue-400 text-[10px] font-semibold border border-blue-500/30">
+                            [[ t('catalog_banner_badge') ]]
+                        </span>
+                        <h2 class="text-base font-extrabold text-white">[[ t('catalog_banner_title') ]]</h2>
+                        <p class="text-[11px] text-slate-300 leading-relaxed">
+                            [[ t('catalog_banner_desc') ]]
+                        </p>
+                        <button 
+                            @click="activeTab = 'portfolio'; triggerHaptic('selection')"
+                            class="mt-1.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 border border-blue-400/30 text-[11px] font-semibold transition-all active:scale-95"
+                        >
+                            <span>[[ t('catalog_view_portfolio') ]]</span>
+                            <span>→</span>
+                        </button>
+                    </div>
+                    <div class="w-14 h-14 rounded-2xl bg-blue-500/10 border border-blue-400/20 flex items-center justify-center text-3xl shadow-inner">
+                        🪪
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search Bar -->
+            <div class="relative">
+                <input 
+                    v-model="searchQuery" 
+                    type="text" 
+                    :placeholder="t('search_placeholder')"
+                    :class="currentDir === 'rtl' ? 'pr-10 pl-4' : 'pl-10 pr-4'"
+                    class="w-full bg-slate-800/90 border border-slate-700/80 rounded-2xl py-2.5 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                >
+                <div :class="currentDir === 'rtl' ? 'right-3.5' : 'left-3.5'" class="absolute top-3 text-slate-400 text-sm pointer-events-none">
+                    🔍
+                </div>
+                <button v-if="searchQuery" @click="searchQuery = ''" :class="currentDir === 'rtl' ? 'left-3' : 'right-3'" class="absolute top-2.5 text-slate-400 text-xs hover:text-white">✕</button>
+            </div>
+
+            <!-- Category Horizontal Filter Chips -->
+            <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
+                <button 
+                    @click="selectedCategoryFilter = null; triggerHaptic('selection')"
+                    :class="selectedCategoryFilter === null ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/40 border-blue-500' : 'bg-slate-800/70 text-slate-300 border-slate-700/70 hover:bg-slate-800'"
+                    class="px-3.5 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap border transition-all"
+                >
+                    [[ t('all_services') ]]
+                </button>
+                <button 
+                    v-for="cat in rootCategories" 
+                    :key="cat.id"
+                    @click="selectedCategoryFilter = cat.id; triggerHaptic('selection')"
+                    :class="selectedCategoryFilter === cat.id ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/40 border-blue-500' : 'bg-slate-800/70 text-slate-300 border-slate-700/70 hover:bg-slate-800'"
+                    class="px-3.5 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap border transition-all"
+                >
+                    📁 [[ cat.title ]]
+                </button>
+            </div>
+
+            <!-- Loading State -->
+            <div v-if="loadingCategories" class="space-y-3">
+                <div v-for="i in 3" :key="i" class="h-28 rounded-2xl glass-card shimmer"></div>
+            </div>
+
+            <!-- Empty Services -->
+            <div v-else-if="filteredServices.length === 0" class="text-center py-12 glass-card rounded-3xl">
+                <div class="text-4xl mb-2">🔎</div>
+                <p class="text-xs text-slate-400 font-medium">[[ t('no_services_found') ]]</p>
+            </div>
+
+            <!-- Service Cards Grid -->
+            <div v-else class="space-y-3">
+                <div 
+                    v-for="service in filteredServices" 
+                    :key="service.id"
+                    class="glass-card rounded-2xl p-4 border border-slate-800/80 hover:border-blue-500/40 transition-all relative overflow-hidden group shadow-sm"
+                >
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="space-y-1.5 flex-1">
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-sm font-bold text-white group-hover:text-blue-400 transition-colors">
+                                    [[ service.title ]]
+                                </h3>
+                            </div>
+                            <p class="text-[11px] text-slate-400 line-clamp-2 leading-relaxed">
+                                [[ service.description || t('service_desc_default') ]]
+                            </p>
+                        </div>
+
+                        <!-- Price Badge -->
+                        <div class="text-end shrink-0">
+                            <div class="text-xs font-black text-emerald-400 font-mono flex items-center justify-end gap-1">
+                                <span>[[ formatNumber(service.price) ]]</span>
+                                <span class="text-[10px]">USDT</span>
+                            </div>
+                            <span class="text-[9px] text-slate-500">[[ t('fixed_price') ]]</span>
+                        </div>
+                    </div>
+
+                    <!-- Footer Action -->
+                    <div class="mt-3 pt-3 border-t border-slate-800/60 flex items-center justify-between">
+                        <div class="flex items-center gap-1.5 text-[10px] text-slate-400">
+                            <span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+                            <span>[[ service.fields_count ]] [[ t('info_steps_suffix') ]]</span>
+                        </div>
+
+                        <button 
+                            @click="openServiceForm(service)"
+                            class="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold shadow-md shadow-blue-600/30 flex items-center gap-1.5 active:scale-95 transition-all"
+                        >
+                            <span>[[ t('btn_order_now') ]]</span>
+                            <span class="text-xs">→</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+
+
+        <!-- ========================================== -->
+        <!-- TAB: گالری نمونه‌کارها (PORTFOLIO SHOWCASE) -->
+        <!-- ========================================== -->
+        <main v-if="activeTab === 'portfolio'" class="space-y-4">
+
+            <!-- Header Banner -->
+            <div class="glass-card relative rounded-3xl p-4 overflow-hidden border border-purple-500/20 bg-gradient-to-br from-slate-900 via-purple-950/30 to-slate-900">
+                <div class="absolute -right-8 -top-8 w-32 h-32 bg-purple-500/15 rounded-full blur-2xl pointer-events-none"></div>
+                <div class="flex items-center justify-between relative z-10">
+                    <div class="space-y-1 max-w-[75%]">
+                        <span class="inline-block px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 text-[10px] font-semibold border border-purple-500/30">
+                            [[ t('portfolio_banner_badge') ]]
+                        </span>
+                        <h2 class="text-base font-extrabold text-white">[[ t('portfolio_banner_title') ]]</h2>
+                        <p class="text-[11px] text-slate-300 leading-relaxed">
+                            [[ t('portfolio_banner_desc') ]]
+                        </p>
+                    </div>
+                    <div class="w-14 h-14 rounded-2xl bg-purple-500/10 border border-purple-400/20 flex items-center justify-center text-3xl shadow-inner">
+                        ✨
+                    </div>
+                </div>
+            </div>
+
+            <!-- Category Horizontal Filter Chips for Portfolio -->
+            <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
+                <button 
+                    @click="selectedPortfolioFilter = null; triggerHaptic('selection')"
+                    :class="selectedPortfolioFilter === null ? 'bg-purple-600 text-white shadow-sm shadow-purple-500/40 border-purple-500' : 'bg-slate-800/70 text-slate-300 border-slate-700/70 hover:bg-slate-800'"
+                    class="px-3.5 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap border transition-all"
+                >
+                    [[ t('all_portfolio') ]]
+                </button>
+                <button 
+                    v-for="cat in allServices" 
+                    :key="cat.id"
+                    @click="selectedPortfolioFilter = cat.id; triggerHaptic('selection')"
+                    :class="selectedPortfolioFilter === cat.id ? 'bg-purple-600 text-white shadow-sm shadow-purple-500/40 border-purple-500' : 'bg-slate-800/70 text-slate-300 border-slate-700/70 hover:bg-slate-800'"
+                    class="px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap border transition-all"
+                >
+                    [[ cat.title ]]
+                </button>
+            </div>
+
+            <!-- Shimmer Loading -->
+            <div v-if="loadingPortfolio" class="grid grid-cols-2 gap-3">
+                <div v-for="i in 4" :key="i" class="glass-card rounded-2xl p-2.5 space-y-2.5 shimmer border border-slate-800">
+                    <div class="h-32 bg-slate-800 rounded-xl"></div>
+                    <div class="h-3.5 bg-slate-800 rounded-md w-3/4"></div>
+                    <div class="h-2.5 bg-slate-800/60 rounded-md w-1/2"></div>
+                </div>
+            </div>
+
+            <!-- Empty State -->
+            <div v-else-if="filteredPortfolioItems.length === 0" class="glass-card rounded-3xl p-8 text-center space-y-3 border border-slate-800">
+                <div class="text-4xl">🎨</div>
+                <h4 class="text-sm font-bold text-white">[[ t('no_portfolio_found') ]]</h4>
+                <p class="text-xs text-slate-400">[[ t('portfolio_coming_soon') ]]</p>
+                <button @click="activeTab = 'catalog'; triggerHaptic('medium')" class="px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold shadow-md shadow-blue-600/30">
+                    [[ t('btn_view_catalog') ]]
+                </button>
+            </div>
+
+            <!-- Portfolio Items Grid -->
+            <div v-else class="grid grid-cols-2 gap-3">
+                <div 
+                    v-for="item in filteredPortfolioItems" 
+                    :key="item.id" 
+                    class="glass-card rounded-2xl p-2.5 border border-slate-800/80 hover:border-purple-500/40 transition-all flex flex-col justify-between group"
+                >
+                    <div class="space-y-2">
+                        <!-- Image with Lightbox Trigger -->
+                        <div 
+                            @click="openPortfolioModal(item)" 
+                            class="relative rounded-xl overflow-hidden aspect-[4/3] bg-slate-950 cursor-pointer border border-slate-700/50"
+                        >
+                            <img 
+                                :src="item.image_path" 
+                                :alt="item.title" 
+                                loading="lazy" 
+                                class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                            >
+                            <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <span class="w-8 h-8 rounded-full bg-slate-900/80 text-white flex items-center justify-center text-xs shadow-md">🔍</span>
+                            </div>
+                        </div>
+
+                        <!-- Title & Details -->
+                        <div>
+                            <h4 class="text-xs font-bold text-white line-clamp-1">[[ item.title ]]</h4>
+                            <span v-if="item.category_title" class="inline-block mt-0.5 px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-300 text-[9px] font-medium border border-purple-500/20">
+                                [[ item.category_title ]]
+                            </span>
+                            <p v-if="item.description" class="text-[10px] text-slate-400 line-clamp-2 mt-1 leading-relaxed">
+                                [[ item.description ]]
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Action Button -->
+                    <div class="mt-2.5 pt-2 border-t border-slate-800/60 flex items-center gap-1.5">
+                        <button 
+                            @click="openPortfolioModal(item)" 
+                            class="flex-1 py-1.5 px-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-medium border border-slate-700/80 transition-all text-center"
+                        >
+                            [[ t('btn_view') ]]
+                        </button>
+                        <button 
+                            v-if="item.category_id"
+                            @click="orderFromPortfolio(item)" 
+                            class="flex-1 py-1.5 px-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-[10px] font-bold shadow-sm shadow-blue-500/30 transition-all text-center"
+                        >
+                            [[ t('btn_order_sample') ]]
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+
+
+        <!-- ========================================== -->
+        <!-- TAB 2: فرم‌ساز پویا و ثبت سفارش (WIZARD) -->
+        <!-- ========================================== -->
+        <main v-if="activeTab === 'wizard'" class="space-y-4">
+            
+            <!-- Back Navigation & Title -->
+            <div class="flex items-center justify-between pb-1 border-b border-slate-800">
+                <button 
+                    @click="closeServiceForm()"
+                    class="flex items-center gap-1 text-xs text-slate-300 hover:text-white px-2.5 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/60 transition-all active:scale-95"
+                >
+                    <span>←</span>
+                    <span>[[ t('btn_back_to_services') ]]</span>
+                </button>
+
+                <span class="text-[11px] font-medium text-slate-400">[[ t('wizard_title') ]]</span>
+            </div>
+
+            <!-- Selected Service Info Card -->
+            <div class="glass-card rounded-2xl p-4 border border-blue-500/30 bg-gradient-to-b from-blue-950/20 to-slate-900">
+                <div class="flex items-start justify-between gap-3">
+                    <div class="space-y-1">
+                        <span class="text-[10px] text-blue-400 font-semibold">[[ t('selected_service') ]]</span>
+                        <h2 class="text-sm font-extrabold text-white">[[ currentService.title ]]</h2>
+                        <p class="text-[11px] text-slate-400 leading-relaxed">[[ currentService.description ]]</p>
+                    </div>
+                    <div class="text-end shrink-0 bg-slate-950/60 border border-slate-800 p-2.5 rounded-xl">
+                        <div class="text-[10px] text-slate-400">[[ t('order_cost') ]]</div>
+                        <div class="text-sm font-black text-emerald-400 font-mono">[[ formatNumber(currentService.price) ]] USDT</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dynamic Form Fields -->
+            <div v-if="loadingFields" class="space-y-3 py-6 text-center">
+                <div class="inline-block w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                <div class="text-xs text-slate-400">[[ t('preparing_fields') ]]</div>
+            </div>
+
+            <form v-else @submit.prevent="submitOrder" class="space-y-4">
+                
+                <div v-for="field in currentFormFields" :key="field.id" class="space-y-1.5">
+                    <div class="flex items-center justify-between">
+                        <label :for="field.field_key" class="text-xs font-bold text-slate-200">
+                            [[ field.label ]]
+                            <span v-if="field.is_required" class="text-rose-400">*</span>
+                            <span v-else class="text-[10px] text-slate-400 font-normal mx-1">[[ t('field_optional') ]]</span>
+                        </label>
+                    </div>
+
+                    <!-- 1. Text Field -->
+                    <div v-if="field.field_type === 'text'">
+                        <input 
+                            v-model="orderFormData[field.field_key]"
+                            :id="field.field_key"
+                            type="text" 
+                            :placeholder="t('enter_prefix') + field.label"
+                            :required="field.is_required"
+                            class="w-full bg-slate-800/90 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                        >
+                    </div>
+
+                    <!-- 2. Number Field -->
+                    <div v-else-if="field.field_type === 'number'">
+                        <input 
+                            v-model="orderFormData[field.field_key]"
+                            :id="field.field_key"
+                            type="number" 
+                            :placeholder="t('number_prefix') + field.label"
+                            :required="field.is_required"
+                            class="w-full bg-slate-800/90 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-mono"
+                        >
+                    </div>
+
+                    <!-- 3. Date Field -->
+                    <div v-else-if="field.field_type === 'date'">
+                        <input 
+                            v-model="orderFormData[field.field_key]"
+                            :id="field.field_key"
+                            type="date" 
+                            :required="field.is_required"
+                            class="w-full bg-slate-800/90 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-mono"
+                        >
+                    </div>
+
+                    <!-- 4. Select Dropdown Field -->
+                    <div v-else-if="field.field_type === 'select'">
+                        <select 
+                            v-model="orderFormData[field.field_key]"
+                            :id="field.field_key"
+                            :required="field.is_required"
+                            class="w-full bg-slate-800/90 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                        >
+                            <option value="" disabled selected>[[ t('select_option_placeholder') ]]</option>
+                            <option v-for="opt in field.options" :key="opt" :value="opt">
+                                [[ opt ]]
+                            </option>
+                        </select>
+                    </div>
+
+                    <!-- 5. Photo & File Upload Field -->
+                    <div v-else-if="field.field_type === 'photo' || field.field_type === 'file'" class="space-y-2">
+                        <div 
+                            class="border-2 border-dashed border-slate-700 hover:border-blue-500/60 rounded-2xl p-4 text-center cursor-pointer bg-slate-900/40 transition-all"
+                            @click="$refs['fileInput_' + field.field_key][0].click()"
+                        >
+                            <input 
+                                :ref="'fileInput_' + field.field_key"
+                                type="file" 
+                                class="hidden" 
+                                :accept="field.field_type === 'photo' ? 'image/*' : '*/*'"
+                                @change="handleFileUpload($event, field.field_key)"
+                            >
+
+                            <div v-if="!uploadingFiles[field.field_key] && !orderFormData[field.field_key]" class="space-y-1">
+                                <div class="text-2xl">📤</div>
+                                <div class="text-xs font-semibold text-slate-300">[[ t('upload_click') ]]</div>
+                                <div class="text-[10px] text-slate-500">[[ t('upload_hint') ]]</div>
+                            </div>
+
+                            <!-- Uploading progress -->
+                            <div v-else-if="uploadingFiles[field.field_key]" class="space-y-1.5 py-2">
+                                <div class="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                                <div class="text-[11px] text-blue-400">[[ t('uploading_file') ]]</div>
+                            </div>
+
+                            <!-- Uploaded Preview -->
+                            <div v-else class="flex items-center justify-between p-2 rounded-xl bg-slate-800 border border-emerald-500/40">
+                                <div class="flex items-center gap-2 overflow-hidden">
+                                    <span class="text-emerald-400 text-sm">✓</span>
+                                    <span class="text-xs text-white truncate max-w-[180px]">[[ uploadedFileNames[field.field_key] || t('file_attached') ]]</span>
+                                </div>
+                                <button 
+                                    type="button"
+                                    @click.stop="orderFormData[field.field_key] = ''; uploadedFileNames[field.field_key] = ''"
+                                    class="text-rose-400 hover:text-rose-300 text-xs px-2 py-1 rounded-lg bg-rose-500/10"
+                                >
+                                    [[ t('btn_delete') ]]
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Financial Summary & Checkout Box -->
+                <div class="glass-card rounded-2xl p-4 border border-slate-800 space-y-3 mt-6">
+                    <div class="flex items-center justify-between text-xs pb-2 border-b border-slate-800">
+                        <span class="text-slate-400">[[ t('current_wallet_balance') ]]</span>
+                        <span class="font-bold font-mono text-white">[[ formatNumber(userProfile.wallet_balance) ]] USDT</span>
+                    </div>
+
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="text-slate-400">[[ t('total_payable_amount') ]]</span>
+                        <span class="font-bold font-mono text-emerald-400 text-sm">[[ formatNumber(currentService.price) ]] USDT</span>
+                    </div>
+
+                    <!-- Insufficient Balance Alert -->
+                    <div v-if="userProfile.wallet_balance < currentService.price" class="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-between">
+                        <div class="text-[11px] text-rose-300">
+                            [[ t('insufficient_balance_alert') ]]
+                        </div>
+                        <button 
+                            type="button"
+                            @click="activeTab = 'wallet'; triggerHaptic('medium')"
+                            class="text-[11px] font-bold text-white bg-rose-600 hover:bg-rose-500 px-3 py-1 rounded-lg transition-all"
+                        >
+                            [[ t('btn_recharge_wallet') ]]
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <button 
+                    type="submit"
+                    :disabled="submittingOrder || (userProfile.wallet_balance < currentService.price)"
+                    :class="(userProfile.wallet_balance < currentService.price) ? 'opacity-50 cursor-not-allowed bg-slate-700' : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-emerald-500/30 active:scale-95'"
+                    class="w-full py-3.5 rounded-2xl text-white text-xs font-black shadow-lg transition-all flex items-center justify-center gap-2"
+                >
+                    <div v-if="submittingOrder" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span v-else>[[ t('btn_confirm_pay') ]]</span>
+                </button>
+            </form>
+
+        </main>
+
+
+        <!-- ========================================== -->
+        <!-- TAB 3: میز کار و پیگیری سفارش‌ها (ORDERS) -->
+        <!-- ========================================== -->
+        <main v-if="activeTab === 'orders'" class="space-y-4">
+            
+            <div class="flex items-center justify-between">
+                <h2 class="text-sm font-black text-white">[[ t('orders_title') ]]</h2>
+                <button @click="loadOrders(); triggerHaptic('light')" class="text-xs text-blue-400 hover:text-blue-300">
+                    [[ t('btn_refresh') ]]
+                </button>
+            </div>
+
+            <!-- Orders Filter Chips -->
+            <div class="flex items-center gap-2">
+                <button 
+                    @click="orderStatusFilter = 'all'; triggerHaptic('selection')"
+                    :class="orderStatusFilter === 'all' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-300'"
+                    class="px-3 py-1 rounded-xl text-xs font-medium transition-all"
+                >
+                    [[ t('filter_all') ]] ([[ ordersList.length ]])
+                </button>
+                <button 
+                    @click="orderStatusFilter = 'active'; triggerHaptic('selection')"
+                    :class="orderStatusFilter === 'active' ? 'bg-amber-600 text-white' : 'bg-slate-800 text-slate-300'"
+                    class="px-3 py-1 rounded-xl text-xs font-medium transition-all"
+                >
+                    [[ t('filter_active') ]] ([[ activeOrdersCount ]])
+                </button>
+                <button 
+                    @click="orderStatusFilter = 'completed'; triggerHaptic('selection')"
+                    :class="orderStatusFilter === 'completed' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-300'"
+                    class="px-3 py-1 rounded-xl text-xs font-medium transition-all"
+                >
+                    [[ t('filter_completed') ]] ([[ completedOrdersCount ]])
+                </button>
+            </div>
+
+            <!-- Loading State -->
+            <div v-if="loadingOrders" class="space-y-3">
+                <div v-for="i in 2" :key="i" class="h-32 rounded-2xl glass-card shimmer"></div>
+            </div>
+
+            <!-- Empty State -->
+            <div v-else-if="filteredOrders.length === 0" class="text-center py-16 glass-card rounded-3xl space-y-3">
+                <div class="text-5xl">📭</div>
+                <div class="text-xs font-bold text-slate-300">[[ t('no_orders_yet') ]]</div>
+                <p class="text-[11px] text-slate-400">[[ t('start_order_hint') ]]</p>
+                <button @click="activeTab = 'catalog'; triggerHaptic('medium')" class="px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold shadow-md shadow-blue-600/30">
+                    [[ t('btn_view_catalog') ]]
+                </button>
+            </div>
+
+            <!-- Order Cards -->
+            <div v-else class="space-y-3">
+                <div 
+                    v-for="order in filteredOrders" 
+                    :key="order.id"
+                    class="glass-card rounded-2xl p-4 border border-slate-800/80 space-y-3"
+                >
+                    <!-- Card Header -->
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <div class="flex items-center gap-1.5 cursor-pointer" @click="copyToClipboard(order.order_code, t('toast_code_copied'))">
+                                <span class="text-xs font-mono font-bold text-blue-400">[[ order.order_code ]]</span>
+                                <span class="text-[10px] text-slate-500">📋</span>
+                            </div>
+                            <h4 class="text-sm font-bold text-white mt-1">[[ order.category_title ]]</h4>
+                        </div>
+
+                        <!-- Status Badge -->
+                        <span 
+                            :class="{
+                                'bg-blue-500/20 text-blue-400 border-blue-500/30': order.status === 'paid_in_queue',
+                                'bg-amber-500/20 text-amber-400 border-amber-500/30': order.status === 'in_progress',
+                                'bg-orange-500/20 text-orange-400 border-orange-500/30': order.status === 'needs_review',
+                                'bg-emerald-500/20 text-emerald-400 border-emerald-500/30': order.status === 'completed',
+                                'bg-rose-500/20 text-rose-400 border-rose-500/30': order.status === 'cancelled'
+                            }"
+                            class="px-2.5 py-0.5 rounded-full text-[10px] font-semibold border flex items-center gap-1"
+                        >
+                            <span class="w-1.5 h-1.5 rounded-full bg-current"></span>
+                            [[ order.status_label ]]
+                        </span>
+                    </div>
+
+                    <!-- Progress Line Indicator -->
+                    <div class="py-1">
+                        <div class="flex items-center justify-between text-[9px] text-slate-400 mb-1">
+                            <span :class="order.status !== 'cancelled' ? 'text-blue-400 font-bold' : ''">[[ t('step_registered') ]]</span>
+                            <span :class="['in_progress', 'completed'].includes(order.status) ? 'text-amber-400 font-bold' : ''">[[ t('step_processing') ]]</span>
+                            <span :class="order.status === 'completed' ? 'text-emerald-400 font-bold' : ''">[[ t('step_delivered') ]]</span>
+                        </div>
+                        <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden flex">
+                            <div class="bg-blue-500 h-full w-1/3"></div>
+                            <div :class="['in_progress', 'completed'].includes(order.status) ? 'bg-amber-500' : 'bg-transparent'" class="h-full w-1/3 transition-all duration-500"></div>
+                            <div :class="order.status === 'completed' ? 'bg-emerald-500' : 'bg-transparent'" class="h-full w-1/3 transition-all duration-500"></div>
+                        </div>
+                    </div>
+
+                    <!-- Delivery Box if Completed -->
+                    <div v-if="order.delivery_file_url" class="p-3 rounded-xl bg-emerald-950/40 border border-emerald-500/40 space-y-2">
+                        <div class="flex items-center gap-2 text-emerald-300 text-xs font-bold">
+                            <span>[[ t('delivery_ready') ]]</span>
+                        </div>
+                        <a 
+                            :href="order.delivery_file_url" 
+                            target="_blank" 
+                            download
+                            class="w-full py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md shadow-emerald-600/30 flex items-center justify-center gap-2 transition-all active:scale-95"
+                        >
+                            <span>[[ t('btn_download_file') ]]</span>
+                            <span class="text-[10px] font-mono opacity-80">([[ order.delivery_file_name ]])</span>
+                        </a>
+                    </div>
+
+                    <!-- Admin Notes if exists -->
+                    <div v-if="order.admin_notes" class="p-2.5 rounded-xl bg-slate-800/60 border border-slate-700/60 text-[11px] text-slate-300">
+                        <span class="text-blue-400 font-semibold">[[ t('support_notes') ]]</span> [[ order.admin_notes ]]
+                    </div>
+
+                    <!-- Footer Details -->
+                    <div class="flex items-center justify-between text-[10px] text-slate-400 pt-1">
+                        <span>[[ t('order_date_label') ]] [[ order.created_at ]]</span>
+                        <span class="font-mono text-emerald-400 font-bold">[[ formatNumber(order.amount_paid) ]] USDT</span>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+
+
+        <!-- ========================================== -->
+        <!-- TAB 4: کیف پول و شارژ تتر (CRYPTO WALLET) -->
+        <!-- ========================================== -->
+        <main v-if="activeTab === 'wallet'" class="space-y-4">
+            
+            <!-- Luxury Gradient Balance Card -->
+            <div class="rounded-3xl p-5 bg-gradient-to-tr from-slate-950 via-slate-900 to-blue-900/60 border border-blue-500/30 shadow-xl glow-accent relative overflow-hidden">
+                <div class="flex items-center justify-between mb-4">
+                    <span class="text-xs font-semibold text-blue-300 tracking-wide uppercase">[[ t('wallet_header_title') ]]</span>
+                    <span class="text-xs font-mono text-slate-400">ID: [[ userProfile.telegram_id ]]</span>
+                </div>
+
+                <div class="space-y-1 mb-4">
+                    <div class="text-[11px] text-slate-400">[[ t('available_balance') ]]</div>
+                    <div class="text-3xl font-black text-white font-mono tracking-tight flex items-baseline gap-1.5">
+                        <span class="text-emerald-400">[[ formatNumber(userProfile.wallet_balance) ]]</span>
+                        <span class="text-sm text-slate-300 font-normal">USDT</span>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between text-[11px] pt-3 border-t border-slate-800/80 text-slate-400">
+                    <span>[[ t('auto_confirm_label') ]]</span>
+                    <span class="text-emerald-400 font-medium flex items-center gap-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+                        [[ t('active_badge') ]]
+                    </span>
+                </div>
+            </div>
+
+            <!-- Deposit Section -->
+            <div class="glass-card rounded-2xl p-4 border border-slate-800 space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xs font-bold text-white flex items-center gap-1.5">
+                        <span>[[ t('topup_title') ]]</span>
+                    </h3>
+                </div>
+
+                <!-- Network Tabs -->
+                <div class="grid grid-cols-2 gap-2 bg-slate-900 p-1 rounded-xl border border-slate-800">
+                    <button 
+                        @click="selectedNetwork = 'TRC20'; triggerHaptic('selection')"
+                        :class="selectedNetwork === 'TRC20' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:text-white'"
+                        class="py-1.5 rounded-lg text-xs transition-all"
+                    >
+                        [[ t('net_trc20_name') ]]
+                    </button>
+                    <button 
+                        @click="selectedNetwork = 'BEP20'; triggerHaptic('selection')"
+                        :class="selectedNetwork === 'BEP20' ? 'bg-amber-600 text-white font-bold' : 'text-slate-400 hover:text-white'"
+                        class="py-1.5 rounded-lg text-xs transition-all"
+                    >
+                        [[ t('net_bep20_name') ]]
+                    </button>
+                </div>
+
+                <!-- Deposit Address Box -->
+                <div class="space-y-2 text-center">
+                    <!-- QR Code -->
+                    <div class="w-36 h-36 mx-auto bg-white p-2 rounded-2xl shadow-lg border border-slate-700 flex items-center justify-center">
+                        <canvas id="qr-canvas" class="w-full h-full"></canvas>
+                    </div>
+
+                    <div class="text-[11px] text-slate-400">[[ t('deposit_addr_label') ]] [[ selectedNetwork ]]:</div>
+
+                    <div 
+                        @click="copyToClipboard(currentAddress, t('toast_addr_copied'))"
+                        class="p-2.5 rounded-xl bg-slate-900 border border-slate-700/80 flex items-center justify-between gap-2 cursor-pointer hover:border-blue-500/50 transition-all"
+                    >
+                        <span class="text-[11px] font-mono text-blue-300 truncate">[[ currentAddress ]]</span>
+                        <button type="button" class="text-xs text-blue-400 font-bold shrink-0 bg-blue-500/10 px-2 py-1 rounded-lg">
+                            [[ t('btn_copy') ]]
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Submit TXID Form -->
+                <div class="pt-3 border-t border-slate-800 space-y-2">
+                    <div class="text-xs font-bold text-white">[[ t('submit_txid_title') ]]</div>
+                    <p class="text-[10px] text-slate-400 leading-relaxed">
+                        [[ t('submit_txid_hint') ]]
+                    </p>
+
+                    <div class="flex gap-2">
+                        <input 
+                            v-model="txHashInput"
+                            type="text" 
+                            :placeholder="t('txid_placeholder')"
+                            class="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 font-mono focus:outline-none focus:border-blue-500"
+                        >
+                        <button 
+                            @click="submitTransactionHash"
+                            :disabled="submittingTx || !txHashInput.trim()"
+                            class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-bold shrink-0 shadow-md shadow-blue-600/30"
+                        >
+                            [[ submittingTx ? '...' : t('btn_submit_hash') ]]
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Transactions History -->
+            <div class="space-y-2">
+                <h4 class="text-xs font-bold text-slate-300">[[ t('tx_history_title') ]]</h4>
+
+                <div v-if="walletTransactions.length === 0" class="text-center py-6 glass-card rounded-2xl text-[11px] text-slate-400">
+                    [[ t('no_tx_history') ]]
+                </div>
+
+                <div v-else class="space-y-2">
+                    <div 
+                        v-for="tx in walletTransactions" 
+                        :key="tx.id"
+                        class="glass-card rounded-xl p-3 border border-slate-800/80 flex items-center justify-between"
+                    >
+                        <div>
+                            <div class="text-xs font-bold text-white">[[ tx.type_label ]]</div>
+                            <div class="text-[10px] text-slate-500 font-mono mt-0.5">[[ tx.created_at ]]</div>
+                        </div>
+
+                        <div class="text-end">
+                            <div 
+                                :class="tx.type === 'deposit' ? 'text-emerald-400' : 'text-slate-300'"
+                                class="text-xs font-bold font-mono"
+                            >
+                                [[ tx.type === 'deposit' ? '+' : '-' ]] [[ formatNumber(tx.amount) ]] USDT
+                            </div>
+                            <span 
+                                :class="{
+                                    'text-emerald-400': tx.status === 'confirmed',
+                                    'text-amber-400': tx.status === 'pending',
+                                    'text-rose-400': tx.status === 'rejected'
+                                }"
+                                class="text-[10px]"
+                            >
+                                [[ tx.status_label ]]
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+
+
+        <!-- ========================================== -->
+        <!-- TAB 5: پروفایل و پشتیبانی (PROFILE) -->
+        <!-- ========================================== -->
+        <main v-if="activeTab === 'profile'" class="space-y-4">
+            
+            <div class="glass-card rounded-3xl p-5 border border-slate-800 text-center space-y-3">
+                <div class="w-16 h-16 rounded-full bg-gradient-to-tr from-blue-600 to-purple-600 mx-auto flex items-center justify-center text-2xl font-black text-white shadow-lg shadow-blue-500/30">
+                    [[ userInitial ]]
+                </div>
+                <div>
+                    <h3 class="text-base font-bold text-white">[[ userProfile.first_name || t('user_default_name') ]]</h3>
+                    <p class="text-xs text-slate-400 font-mono">ID: [[ userProfile.telegram_id ]]</p>
+                </div>
+            </div>
+
+            <!-- Account Credentials -->
+            <div class="glass-card rounded-2xl p-4 border border-slate-800 space-y-3">
+                <h4 class="text-xs font-bold text-white">[[ t('account_info_title') ]]</h4>
+
+                <div class="space-y-1">
+                    <div class="text-[10px] text-slate-400">[[ t('api_token_label') ]]</div>
+                    <div 
+                        @click="copyToClipboard(userProfile.api_token, t('toast_token_copied'))"
+                        class="p-2.5 rounded-xl bg-slate-900 border border-slate-700/80 flex items-center justify-between gap-2 cursor-pointer"
+                    >
+                        <span class="text-[11px] font-mono text-slate-300 truncate">[[ userProfile.api_token ]]</span>
+                        <span class="text-xs text-blue-400 font-semibold">[[ t('btn_copy') ]]</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Language Info (Fixed English) -->
+            <div class="glass-card rounded-2xl p-4 border border-slate-800 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="text-base">🌐</span>
+                    <div>
+                        <h4 class="text-xs font-bold text-white">System Language</h4>
+                        <p class="text-[10px] text-slate-400">Interface language is set to English</p>
+                    </div>
+                </div>
+                <span class="px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[10px] font-bold">🇬🇧 EN</span>
+            </div>
+
+            <!-- Support Actions -->
+            <div class="glass-card rounded-2xl p-4 border border-slate-800 space-y-2">
+                <h4 class="text-xs font-bold text-white mb-2">[[ t('support_section_title') ]]</h4>
+                
+                <a 
+                    href="https://t.me/SimorixSupport" 
+                    target="_blank"
+                    class="w-full py-3 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/40 text-blue-300 text-xs font-bold flex items-center justify-center gap-2 transition-all"
+                >
+                    <span>[[ t('btn_chat_support') ]]</span>
+                </a>
+            </div>
+
+        </main>
+
+
+        <!-- ========================================== -->
+        <!-- PORTFOLIO LIGHTBOX / FULLSCREEN PREVIEW -->
+        <!-- ========================================== -->
+        <div 
+            v-if="portfolioModalItem" 
+            class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md transition-all"
+            @click.self="closePortfolioModal()"
+        >
+            <div class="glass-card max-w-sm w-full rounded-3xl p-4 border border-purple-500/30 space-y-3.5 shadow-2xl relative">
+                <!-- Close Button -->
+                <button 
+                    @click="closePortfolioModal()" 
+                    class="absolute left-3.5 top-3.5 w-8 h-8 rounded-full bg-slate-800/90 text-slate-300 hover:text-white flex items-center justify-center text-sm border border-slate-700/80 shadow-md z-10"
+                >
+                    ✕
+                </button>
+
+                <!-- Image View -->
+                <div class="rounded-2xl overflow-hidden bg-slate-950 border border-slate-800 max-h-[55vh] flex items-center justify-center">
+                    <img 
+                        :src="portfolioModalItem.image_path" 
+                        :alt="portfolioModalItem.title" 
+                        class="w-full h-auto max-h-[50vh] object-contain rounded-xl"
+                    >
+                </div>
+
+                <!-- Details -->
+                <div class="space-y-1.5">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-sm font-bold text-white">[[ portfolioModalItem.title ]]</h3>
+                        <span v-if="portfolioModalItem.category_title" class="px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 text-[10px] font-medium border border-purple-500/30">
+                            [[ portfolioModalItem.category_title ]]
+                        </span>
+                    </div>
+                    <p v-if="portfolioModalItem.description" class="text-xs text-slate-300 leading-relaxed bg-slate-800/50 p-2.5 rounded-xl border border-slate-700/40">
+                        [[ portfolioModalItem.description ]]
+                    </p>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="pt-1 flex items-center gap-2">
+                    <button 
+                        v-if="portfolioModalItem.category_id"
+                        @click="orderFromPortfolio(portfolioModalItem)" 
+                        class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold shadow-lg shadow-blue-600/30 transition-all flex items-center justify-center gap-1.5"
+                    >
+                        <span>[[ t('btn_order_this_service') ]]</span>
+                    </button>
+                    <button 
+                        @click="closePortfolioModal()" 
+                        class="py-2.5 px-4 rounded-xl bg-slate-800 text-slate-300 text-xs font-medium border border-slate-700"
+                    >
+                        [[ t('btn_close') ]]
+                    </button>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- ========================================== -->
+        <!-- BOTTOM NAVIGATION BAR (FIXED DOCK) -->
+        <!-- ========================================== -->
+        <nav class="fixed bottom-0 left-0 right-0 z-40 max-w-md mx-auto px-4 py-2.5 bg-slate-900/90 backdrop-blur-xl border-t border-slate-800/80">
+            <div class="flex items-center justify-around">
+                
+                <!-- 1. Catalog -->
+                <button 
+                    @click="activeTab = 'catalog'; triggerHaptic('selection')"
+                    :class="activeTab === 'catalog' ? 'text-blue-400' : 'text-slate-400 hover:text-slate-200'"
+                    class="flex flex-col items-center gap-1 transition-all"
+                >
+                    <span class="text-lg">🛍</span>
+                    <span class="text-[10px] font-medium">[[ t('nav_catalog') ]]</span>
+                </button>
+
+                <!-- 2. Portfolio -->
+                <button 
+                    @click="activeTab = 'portfolio'; triggerHaptic('selection')"
+                    :class="activeTab === 'portfolio' ? 'text-purple-400' : 'text-slate-400 hover:text-slate-200'"
+                    class="flex flex-col items-center gap-1 transition-all"
+                >
+                    <span class="text-lg">🎨</span>
+                    <span class="text-[10px] font-medium">[[ t('nav_portfolio') ]]</span>
+                </button>
+
+                <!-- 3. Orders -->
+                <button 
+                    @click="activeTab = 'orders'; triggerHaptic('selection')"
+                    :class="activeTab === 'orders' ? 'text-blue-400' : 'text-slate-400 hover:text-slate-200'"
+                    class="flex flex-col items-center gap-1 transition-all relative"
+                >
+                    <span class="text-lg">📦</span>
+                    <span class="text-[10px] font-medium">[[ t('nav_orders') ]]</span>
+                    <span v-if="activeOrdersCount > 0" class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-blue-600 text-white text-[9px] font-bold flex items-center justify-center">
+                        [[ activeOrdersCount ]]
+                    </span>
+                </button>
+
+                <!-- 4. Wallet -->
+                <button 
+                    @click="activeTab = 'wallet'; triggerHaptic('selection')"
+                    :class="activeTab === 'wallet' ? 'text-blue-400' : 'text-slate-400 hover:text-slate-200'"
+                    class="flex flex-col items-center gap-1 transition-all"
+                >
+                    <span class="text-lg">💳</span>
+                    <span class="text-[10px] font-medium">[[ t('nav_wallet') ]]</span>
+                </button>
+
+                <!-- 5. Profile -->
+                <button 
+                    @click="activeTab = 'profile'; triggerHaptic('selection')"
+                    :class="activeTab === 'profile' ? 'text-blue-400' : 'text-slate-400 hover:text-slate-200'"
+                    class="flex flex-col items-center gap-1 transition-all"
+                >
+                    <span class="text-lg">👤</span>
+                    <span class="text-[10px] font-medium">[[ t('nav_profile') ]]</span>
+                </button>
+
+            </div>
+        </nav>
+
+    </div> <!-- /v-else (Authorized Content) -->
+
+</div>
+
+<script>
+    const TRANSLATIONS = {
+        en: {
+            app_title: "Botsaller SuperApp",
+            auth_loading_title: "Authenticating secure Telegram account...",
+            auth_loading_desc: "Identifying user ID and loading dedicated wallet",
+            auth_blocked_title: "Access Denied (Unauthorized)",
+            auth_blocked_desc: "This Mini App is exclusively for Telegram users. To ensure security and wallet isolation, it must be opened inside the official Telegram bot.",
+            auth_guide_title: "How to log into your exclusive account:",
+            auth_guide_step1: "1. Open the official Telegram bot.",
+            auth_guide_step2: "2. Tap the inline '🔐 Login' button to instantly identify your account and load your wallet.",
+            btn_open_bot: "🚀 Open via Telegram Bot",
+            user_default_name: "Valued User",
+            user_id_label: "Numeric ID:",
+            catalog_banner_badge: "⚡ Guaranteed & Dedicated Delivery",
+            catalog_banner_title: "Digital & Verification Services",
+            catalog_banner_desc: "Instant order placement with smart dynamic forms and genuine delivery",
+            catalog_view_portfolio: "🎨 View Delivered Portfolio Samples",
+            search_placeholder: "Search services (Passport, ID, Utility Bill...)",
+            all_services: "🌟 All Services",
+            no_services_found: "No services match your search query.",
+            service_desc_default: "Custom order placement with dedicated delivery",
+            fixed_price: "Fixed Price",
+            info_steps_suffix: "form steps",
+            btn_order_now: "Order Now",
+            portfolio_banner_badge: "🎨 Delivered Portfolio Gallery",
+            portfolio_banner_title: "Quality Showcase & Projects",
+            portfolio_banner_desc: "High quality delivered samples and completed customer projects",
+            all_portfolio: "🌟 All Samples",
+            no_portfolio_found: "No portfolio items found in this section",
+            portfolio_coming_soon: "New samples will be added soon.",
+            btn_view_catalog: "Browse Services Catalog",
+            btn_view: "View",
+            btn_order_sample: "Order",
+            btn_order_this_service: "🛍 Order This Service",
+            btn_close: "Close",
+            btn_back_to_services: "Back to Services",
+            wizard_title: "Dedicated Order Form",
+            selected_service: "Selected Service:",
+            order_cost: "Order Cost:",
+            preparing_fields: "Preparing form fields...",
+            field_optional: "(Optional)",
+            enter_prefix: "Enter ",
+            number_prefix: "Numeric value for ",
+            select_option_placeholder: "Please select an option...",
+            upload_click: "Click to select a file or photo",
+            upload_hint: "Maximum size 10MB (JPG, PNG, PDF)",
+            uploading_file: "Uploading file securely to server...",
+            file_attached: "File attached",
+            btn_delete: "Delete",
+            current_wallet_balance: "Your Current Wallet Balance:",
+            total_payable_amount: "Total Amount Payable:",
+            insufficient_balance_alert: "⚠️ Insufficient wallet balance!",
+            btn_recharge_wallet: "Top-up Wallet",
+            btn_confirm_pay: "🔒 Confirm & Pay from Wallet",
+            orders_title: "📦 My Orders & Workspace",
+            btn_refresh: "🔄 Refresh",
+            filter_all: "All",
+            filter_active: "In Progress",
+            filter_completed: "Completed",
+            no_orders_yet: "You haven't placed any orders yet!",
+            start_order_hint: "Select a service from the catalog and start your order.",
+            step_registered: "Registered & Paid",
+            step_processing: "Processing",
+            step_delivered: "Delivered",
+            delivery_ready: "🎉 Your delivered order file is ready!",
+            btn_download_file: "📥 Direct Download File",
+            support_notes: "Support note:",
+            order_date_label: "Date:",
+            wallet_header_title: "Botsaller Crypto Wallet",
+            available_balance: "Available Balance:",
+            auto_confirm_label: "Automated Verification",
+            active_badge: "Active (TRC20 / BEP20)",
+            topup_title: "⚡ Deposit & Top-up Wallet",
+            net_trc20_name: "USDT TRC20 (Tron)",
+            net_bep20_name: "USDT BEP20 (BSC)",
+            deposit_addr_label: "Dedicated deposit address for",
+            btn_copy: "Copy",
+            submit_txid_title: "Submit Transaction Hash (TXID):",
+            submit_txid_hint: "After sending USDT from your exchange or wallet, enter the TxHash here for automated verification and balance top-up.",
+            txid_placeholder: "Transaction Hash (TxHash / TXID)",
+            btn_submit_hash: "Submit Hash",
+            tx_history_title: "Transaction History",
+            no_tx_history: "No transactions recorded yet.",
+            account_info_title: "Account Info & Security Key",
+            api_token_label: "Dedicated Support / API Token:",
+            language_selector_title: "Language / انتخاب زبان",
+            support_section_title: "Customer Support",
+            btn_chat_support: "💬 Telegram Support Chat",
+            nav_catalog: "Services",
+            nav_portfolio: "Portfolio",
+            nav_orders: "Orders",
+            nav_wallet: "Wallet",
+            nav_profile: "Profile",
+            toast_code_copied: "Order code copied!",
+            toast_addr_copied: "Wallet address copied!",
+            toast_token_copied: "Token copied to clipboard!",
+            toast_lang_updated: "Language updated successfully!",
+            toast_copied: "Copied to clipboard!",
+            toast_file_uploaded: "File uploaded successfully.",
+            toast_order_success: "Order placed successfully!"
+        },
+        fa: {
+            app_title: "سوپراپلیکیشن تلگرام Botsaller",
+            auth_loading_title: "در حال احراز هویت امن حساب تلگرام...",
+            auth_loading_desc: "شناسایی آیدی کاربری و بارگذاری کیف پول اختصاصی",
+            auth_blocked_title: "دسترسی مسدود است (ورود غیرمجاز)",
+            auth_blocked_desc: "این مینی‌اپ انحصاری کاربران تلگرام است و برای حفظ امنیت و تفکیک موجودی‌ها، فقط باید از داخل ربات رسمی تلگرام باز شود.",
+            auth_guide_title: "راهنمای ورود به حساب اختصاصی شما:",
+            auth_guide_step1: "۱. وارد ربات رسمی در تلگرام شوید.",
+            auth_guide_step2: "۲. روی دکمه شیشه‌ای «🔐 ورود» کلیک کنید تا حساب شما فوراً شناسایی و کیف پول منحصربه‌فردتان لود شود.",
+            btn_open_bot: "🚀 ورود از طریق ربات تلگرام",
+            user_default_name: "کاربر عزیز",
+            user_id_label: "آیدی عددی:",
+            catalog_banner_badge: "⚡ تحویل اختصاصی و تضمینی",
+            catalog_banner_title: "خدمات دیجیتال و احراز هویت",
+            catalog_banner_desc: "ثبت سفارش آنی با فرم‌ساز هوشمند و تحویل مدارک معتبر",
+            catalog_view_portfolio: "🎨 مشاهده نمونه کارهای انجام شده",
+            search_placeholder: "جستجوی سرویس (پاسپورت، گواهینامه، قبض...)",
+            all_services: "🌟 همه خدمات",
+            no_services_found: "سرویسی مطابق جستجوی شما یافت نشد.",
+            service_desc_default: "ثبت سفارش با مشخصات سفارشی و تحویل اختصاصی",
+            fixed_price: "قیمت قطعی",
+            info_steps_suffix: "مرحله اطلاعاتی",
+            btn_order_now: "ثبت سفارش",
+            portfolio_banner_badge: "🎨 گالری نمونه‌کارهای اجرا شده",
+            portfolio_banner_title: "ویترین کیفیت و پروژه‌ها",
+            portfolio_banner_desc: "نمونه مدارک و سرویس‌های تحویل داده شده به مشتریان با بالاترین کیفیت",
+            all_portfolio: "🌟 همه نمونه‌ها",
+            no_portfolio_found: "نمونه‌کاری در این بخش یافت نشد",
+            portfolio_coming_soon: "به زودی نمونه‌های جدید اضافه خواهد شد.",
+            btn_view_catalog: "مشاهده کاتالوگ خدمات",
+            btn_view: "مشاهده",
+            btn_order_sample: "سفارش",
+            btn_order_this_service: "🛍 ثبت سفارش این سرویس",
+            btn_close: "بستن",
+            btn_back_to_services: "بازگشت به خدمات",
+            wizard_title: "فرم ثبت سفارش اختصاصی",
+            selected_service: "سرویس انتخاب شده:",
+            order_cost: "هزینه سفارش:",
+            preparing_fields: "در حال آماده‌سازی فیلدهای فرم...",
+            field_optional: "(اختیاری)",
+            enter_prefix: "ورود ",
+            number_prefix: "مقدار عددی ",
+            select_option_placeholder: "لطفاً یک گزینه را انتخاب کنید...",
+            upload_click: "برای انتخاب فایل یا عکس کلیک کنید",
+            upload_hint: "حداکثر حجم ۱۰ مگابایت (JPG, PNG, PDF)",
+            uploading_file: "در حال آپلود امن فایل به سرور...",
+            file_attached: "فایل ضمیمه شد",
+            btn_delete: "حذف",
+            current_wallet_balance: "موجودی فعلی کیف پول شما:",
+            total_payable_amount: "مبلغ قابل پرداخت سفارش:",
+            insufficient_balance_alert: "⚠️ موجودی کیف پول کافی نیست!",
+            btn_recharge_wallet: "شارژ کیف پول",
+            btn_confirm_pay: "🔒 تأیید نهایی و پرداخت از کیف پول",
+            orders_title: "📦 میز کار و سفارش‌های من",
+            btn_refresh: "🔄 به‌روزرسانی",
+            filter_all: "همه",
+            filter_active: "در حال انجام",
+            filter_completed: "تحویل داده شده",
+            no_orders_yet: "هنوز سفارشی ثبت نکرده‌اید!",
+            start_order_hint: "سرویس مورد نظر خود را انتخاب کرده و سفارش را آغاز کنید.",
+            step_registered: "ثبت و پرداخت",
+            step_processing: "پردازش تیم فنی",
+            step_delivered: "تحویل مدرک",
+            delivery_ready: "🎉 فایل نهایی سفارش شما آماده است!",
+            btn_download_file: "📥 دانلود مستقیم فایل تحویلی",
+            support_notes: "یادداشت پشتیبان:",
+            order_date_label: "تاریخ ثبت:",
+            wallet_header_title: "Botsaller Crypto Wallet",
+            available_balance: "موجودی در دسترس:",
+            auto_confirm_label: "تأیید خودکار تراکنش‌ها",
+            active_badge: "فعال (TRC20 / BEP20)",
+            topup_title: "⚡ افزایش موجودی و شارژ کیف پول",
+            net_trc20_name: "تتر TRC20 (Tron)",
+            net_bep20_name: "تتر BEP20 (BSC)",
+            deposit_addr_label: "آدرس اختصاصی واریز شبکه",
+            btn_copy: "کپی",
+            submit_txid_title: "ثبت کد رهگیری تراکنش (TXID):",
+            submit_txid_hint: "پس از ارسال تتر از صرافی یا کیف پول، کد هش تراکنش را اینجا وارد کنید تا سیستم به صورت خودکار حسابتان را شارژ کند.",
+            txid_placeholder: "کد هش تراکنش (TxHash / TXID)",
+            btn_submit_hash: "ثبت هش",
+            tx_history_title: "سوابق تراکنش‌ها",
+            no_tx_history: "هنوز تراکنشی ثبت نشده است.",
+            account_info_title: "اطلاعات حساب و کلید امنیتی",
+            api_token_label: "توکن اختصاصی API:",
+            language_selector_title: "Language / انتخاب زبان",
+            support_section_title: "ارتباط با پشتیبانی",
+            btn_chat_support: "💬 چت با پشتیبانی در تلگرام",
+            nav_catalog: "خدمات",
+            nav_portfolio: "نمونه‌کارها",
+            nav_orders: "سفارش‌ها",
+            nav_wallet: "کیف پول",
+            nav_profile: "پروفایل",
+            toast_code_copied: "کد سفارش کپی شد!",
+            toast_addr_copied: "آدرس کیف پول کپی شد!",
+            toast_token_copied: "توکن در کلیپ‌بورد کپی شد!",
+            toast_lang_updated: "زبان با موفقیت تغییر کرد!",
+            toast_copied: "کپی شد!",
+            toast_file_uploaded: "فایل با موفقیت آپلود شد.",
+            toast_order_success: "سفارش با موفقیت ثبت شد!"
+        },
+        ru: {
+            app_title: "Суперприложение Botsaller",
+            auth_loading_title: "Безопасная аутентификация аккаунта Telegram...",
+            auth_loading_desc: "Определение ID пользователя и загрузка кошелька",
+            auth_blocked_title: "Доступ заблокирован (Неавторизованный вход)",
+            auth_blocked_desc: "Это приложение предназначено только для пользователей Telegram. Для обеспечения безопасности его необходимо открывать из официального бота.",
+            auth_guide_title: "Инструкция для входа в ваш аккаунт:",
+            auth_guide_step1: "1. Откройте официального бота в Telegram.",
+            auth_guide_step2: "2. Нажмите кнопку «🔐 Вход», чтобы мгновенно идентифицировать аккаунт и загрузить баланс.",
+            btn_open_bot: "🚀 Открыть в Telegram боте",
+            user_default_name: "Пользователь",
+            user_id_label: "Цифровой ID:",
+            catalog_banner_badge: "⚡ Гарантированная и быстрая доставка",
+            catalog_banner_title: "Цифровые услуги и верификация",
+            catalog_banner_desc: "Быстрое оформление заказов с удобными формами и качественным результатом",
+            catalog_view_portfolio: "🎨 Посмотреть примеры работ",
+            search_placeholder: "Поиск услуг (Паспорт, ID, квитанция...)",
+            all_services: "🌟 Все услуги",
+            no_services_found: "Услуг по вашему запросу не найдено.",
+            service_desc_default: "Индивидуальный заказ с персональным выполнением",
+            fixed_price: "Фиксированная цена",
+            info_steps_suffix: "шагов формы",
+            btn_order_now: "Заказать",
+            portfolio_banner_badge: "🎨 Галерея выполненных работ",
+            portfolio_banner_title: "Витрина качества и проектов",
+            portfolio_banner_desc: "Качественные примеры готовых заказов наших клиентов",
+            all_portfolio: "🌟 Все примеры",
+            no_portfolio_found: "В этом разделе пока нет примеров",
+            portfolio_coming_soon: "Скоро мы добавим новые примеры.",
+            btn_view_catalog: "Перейти в каталог услуг",
+            btn_view: "Просмотр",
+            btn_order_sample: "Заказать",
+            btn_order_this_service: "🛍 Заказать эту услугу",
+            btn_close: "Закрыть",
+            btn_back_to_services: "Назад к услугам",
+            wizard_title: "Оформление заказа",
+            selected_service: "Выбранная услуга:",
+            order_cost: "Стоимость:",
+            preparing_fields: "Загрузка полей формы...",
+            field_optional: "(Необязательно)",
+            enter_prefix: "Введите ",
+            number_prefix: "Числовое значение ",
+            select_option_placeholder: "Пожалуйста, выберите вариант...",
+            upload_click: "Нажмите для выбора файла или фото",
+            upload_hint: "Максимальный размер 10 МБ (JPG, PNG, PDF)",
+            uploading_file: "Безопасная загрузка на сервер...",
+            file_attached: "Файл прикреплен",
+            btn_delete: "Удалить",
+            current_wallet_balance: "Ваш текущий баланс:",
+            total_payable_amount: "Сумма к оплате:",
+            insufficient_balance_alert: "⚠️ Недостаточно средств на балансе!",
+            btn_recharge_wallet: "Пополнить баланс",
+            btn_confirm_pay: "🔒 Подтвердить и оплатить",
+            orders_title: "📦 Мои заказы",
+            btn_refresh: "🔄 Обновить",
+            filter_all: "Все",
+            filter_active: "В процессе",
+            filter_completed: "Выполненные",
+            no_orders_yet: "У вас пока нет заказов!",
+            start_order_hint: "Выберите услугу в каталоге и начните оформление.",
+            step_registered: "Оформление",
+            step_processing: "В обработке",
+            step_delivered: "Готово",
+            delivery_ready: "🎉 Готовый файл заказа доступен!",
+            btn_download_file: "📥 Скачать готовый файл",
+            support_notes: "Примечание поддержки:",
+            order_date_label: "Дата:",
+            wallet_header_title: "Botsaller Crypto Wallet",
+            available_balance: "Доступный баланс:",
+            auto_confirm_label: "Автоматическая верификация",
+            active_badge: "Активно (TRC20 / BEP20)",
+            topup_title: "⚡ Пополнение кошелька",
+            net_trc20_name: "USDT TRC20 (Tron)",
+            net_bep20_name: "USDT BEP20 (BSC)",
+            deposit_addr_label: "Адрес для пополнения в сети",
+            btn_copy: "Копировать",
+            submit_txid_title: "Ввод хэша транзакции (TXID):",
+            submit_txid_hint: "После перевода USDT укажите TXID для автоматического зачисления средств на баланс.",
+            txid_placeholder: "Хэш транзакции (TxHash / TXID)",
+            btn_submit_hash: "Отправить",
+            tx_history_title: "История транзакций",
+            no_tx_history: "Транзакций пока нет.",
+            account_info_title: "Данные аккаунта и токен",
+            api_token_label: "Токен поддержки / API:",
+            language_selector_title: "Language / Выбор языка",
+            support_section_title: "Служба поддержки",
+            btn_chat_support: "💬 Чат с поддержкой в Telegram",
+            nav_catalog: "Услуги",
+            nav_portfolio: "Примеры",
+            nav_orders: "Заказы",
+            nav_wallet: "Кошелек",
+            nav_profile: "Профиль",
+            toast_code_copied: "Номер заказа скопирован!",
+            toast_addr_copied: "Адрес кошелька скопирован!",
+            toast_token_copied: "Токен скопирован!",
+            toast_lang_updated: "Язык успешно изменен!",
+            toast_copied: "Скопировано!",
+            toast_file_uploaded: "Файл успешно загружен.",
+            toast_order_success: "Заказ успешно оформлен!"
+        },
+        zh: {
+            app_title: "Botsaller 超级小程序",
+            auth_loading_title: "正在安全验证 Telegram 账户...",
+            auth_loading_desc: "正在识别用户 ID 并加载专属钱包",
+            auth_blocked_title: "访问被拒绝（未授权）",
+            auth_blocked_desc: "本小程序为 Telegram 用户专属。为确保账户与钱包安全，必须在官方 Telegram 机器人内打开。",
+            auth_guide_title: "如何进入您的专属账户：",
+            auth_guide_step1: "1. 打开 Telegram 官方机器人。",
+            auth_guide_step2: "2. 点击内联“🔐 登录”按钮，立即识别您的账户并加载钱包。",
+            btn_open_bot: "🚀 通过 Telegram 机器人打开",
+            user_default_name: "尊贵用户",
+            user_id_label: "数字 ID:",
+            catalog_banner_badge: "⚡ 专属保真交付",
+            catalog_banner_title: "数字与认证服务",
+            catalog_banner_desc: "智能表单快速下单，保质保量交付真实文件",
+            catalog_view_portfolio: "🎨 查看已交付案例展示",
+            search_placeholder: "搜索服务（护照、身份证、账单...）",
+            all_services: "🌟 全部服务",
+            no_services_found: "未找到符合您搜索条件的服务。",
+            service_desc_default: "定制信息下单，专属制作交付",
+            fixed_price: "固定价格",
+            info_steps_suffix: "个填写步骤",
+            btn_order_now: "立即下单",
+            portfolio_banner_badge: "🎨 交付案例展示",
+            portfolio_banner_title: "高品质项目展示",
+            portfolio_banner_desc: "为客户精心制作交付的真实样品与服务成果",
+            all_portfolio: "🌟 全部案例",
+            no_portfolio_found: "此分类暂无展示案例",
+            portfolio_coming_soon: "近期将添加更多作品。",
+            btn_view_catalog: "查看服务目录",
+            btn_view: "查看",
+            btn_order_sample: "下单",
+            btn_order_this_service: "🛍 下单此服务",
+            btn_close: "关闭",
+            btn_back_to_services: "返回服务列表",
+            wizard_title: "专属订单信息填写",
+            selected_service: "已选服务：",
+            order_cost: "订单费用：",
+            preparing_fields: "正在加载表单项...",
+            field_optional: "（可选）",
+            enter_prefix: "输入 ",
+            number_prefix: "请输入数值 ",
+            select_option_placeholder: "请选择一个选项...",
+            upload_click: "点击选择文件或照片",
+            upload_hint: "文件最大限制 10MB（JPG, PNG, PDF）",
+            uploading_file: "正在安全上传文件到服务器...",
+            file_attached: "文件已上传",
+            btn_delete: "删除",
+            current_wallet_balance: "当前钱包可用余额：",
+            total_payable_amount: "应付订单金额：",
+            insufficient_balance_alert: "⚠️ 钱包余额不足！",
+            btn_recharge_wallet: "充值钱包",
+            btn_confirm_pay: "🔒 确认并从钱包支付",
+            orders_title: "📦 我的订单与工作区",
+            btn_refresh: "🔄 刷新",
+            filter_all: "全部",
+            filter_active: "处理中",
+            filter_completed: "已完成",
+            no_orders_yet: "您暂未创建任何订单！",
+            start_order_hint: "请在服务目录中选择所需服务并开始下单。",
+            step_registered: "提交与扣款",
+            step_processing: "技术制作中",
+            step_delivered: "交付完成",
+            delivery_ready: "🎉 最终交付文件已就绪！",
+            btn_download_file: "📥 直接下载交付文件",
+            support_notes: "客服团队留言：",
+            order_date_label: "下单时间：",
+            wallet_header_title: "Botsaller Crypto Wallet",
+            available_balance: "可用余额：",
+            auto_confirm_label: "区块链自动核对",
+            active_badge: "已启用 (TRC20 / BEP20)",
+            topup_title: "⚡ 充值并增加余额",
+            net_trc20_name: "USDT TRC20 (波场)",
+            net_bep20_name: "USDT BEP20 (币安链)",
+            deposit_addr_label: "专属充值地址 ",
+            btn_copy: "复制",
+            submit_txid_title: "提交交易哈希（TXID）：",
+            submit_txid_hint: "从交易所或钱包转出 USDT 后，请在此处输入 TxHash，系统将自动验证并为您入账。",
+            txid_placeholder: "交易哈希 (TxHash / TXID)",
+            btn_submit_hash: "提交哈希",
+            tx_history_title: "交易历史记录",
+            no_tx_history: "暂无交易记录。",
+            account_info_title: "账户凭证与安全密钥",
+            api_token_label: "专属支持 / API 令牌：",
+            language_selector_title: "Language / 语言切换",
+            support_section_title: "客服支持中心",
+            btn_chat_support: "💬 在 Telegram 中联系官方客服",
+            nav_catalog: "服务",
+            nav_portfolio: "案例",
+            nav_orders: "订单",
+            nav_wallet: "钱包",
+            nav_profile: "我的",
+            toast_code_copied: "订单追踪号已复制！",
+            toast_addr_copied: "充值地址已复制！",
+            toast_token_copied: "令牌已复制到剪贴板！",
+            toast_lang_updated: "语言已成功切换！",
+            toast_copied: "已复制！",
+            toast_file_uploaded: "文件上传成功。",
+            toast_order_success: "订单已成功提交！"
+        },
+        hi: {
+            app_title: "Botsaller सुपर ऐप",
+            auth_loading_title: "सुरक्षित टेलीग्राम खाता प्रमाणीकरण जारी है...",
+            auth_loading_desc: "उपयोगकर्ता पहचान और समर्पित वॉलेट लोड हो रहा है",
+            auth_blocked_title: "पहुंच अवरुद्ध है (अनधिकृत)",
+            auth_blocked_desc: "यह मिनी ऐप केवल टेलीग्राम उपयोगकर्ताओं के लिए है। सुरक्षा बनाए रखने के लिए इसे आधिकारिक टेलीग्राम बॉट के अंदर खोलें।",
+            auth_guide_title: "अपने विशेष खाते में प्रवेश करने का तरीका:",
+            auth_guide_step1: "1. टेलीग्राम में आधिकारिक बॉट खोलें।",
+            auth_guide_step2: "2. तुरंत अपनी पहचान और वॉलेट लोड करने के लिए '🔐 लॉगिन' बटन दबाएं।",
+            btn_open_bot: "🚀 टेलीग्राम बॉट के माध्यम से खोलें",
+            user_default_name: "प्रिय उपयोगकर्ता",
+            user_id_label: "आईडी:",
+            catalog_banner_badge: "⚡ गारंटीकृत और समर्पित डिलीवरी",
+            catalog_banner_title: "डिजिटल और सत्यापन सेवाएं",
+            catalog_banner_desc: "स्मार्ट फॉर्म के साथ तुरंत ऑर्डर करें और प्रामाणिक परिणाम पाएं",
+            catalog_view_portfolio: "🎨 पूरे किए गए कार्यों के नमूने देखें",
+            search_placeholder: "सेवाएं खोजें (पासपोर्ट, आईडी, बिल...)",
+            all_services: "🌟 सभी सेवाएं",
+            no_services_found: "आपकी खोज से मेल खाती कोई सेवा नहीं मिली।",
+            service_desc_default: "कस्टम विवरण के साथ समर्पित ऑर्डर",
+            fixed_price: "निश्चित मूल्य",
+            info_steps_suffix: "चरण",
+            btn_order_now: "ऑर्डर करें",
+            portfolio_banner_badge: "🎨 पोर्टफोलियो गैलरी",
+            portfolio_banner_title: "गुणवत्ता और परियोजनाएं",
+            portfolio_banner_desc: "ग्राहकों को डिलीवर किए गए उच्च गुणवत्ता वाले नमूने",
+            all_portfolio: "🌟 सभी नमूने",
+            no_portfolio_found: "इस खंड में कोई नमूना नहीं मिला",
+            portfolio_coming_soon: "जल्द ही नए नमूने जोड़े जाएंगे।",
+            btn_view_catalog: "सेवा कैटलॉग देखें",
+            btn_view: "देखें",
+            btn_order_sample: "ऑर्डर",
+            btn_order_this_service: "🛍 यह सेवा ऑर्डर करें",
+            btn_close: "बंद करें",
+            btn_back_to_services: "सेवाओं पर वापस जाएं",
+            wizard_title: "समर्पित ऑर्डर फ़ॉर्म",
+            selected_service: "चयनित सेवा:",
+            order_cost: "ऑर्डर मूल्य:",
+            preparing_fields: "फ़ॉर्म फ़ील्ड तैयार हो रहे हैं...",
+            field_optional: "(वैकल्पिक)",
+            enter_prefix: "दर्ज करें ",
+            number_prefix: "संख्यात्मक मान ",
+            select_option_placeholder: "कृपया एक विकल्प चुनें...",
+            upload_click: "फ़ाइल या फ़ोटो चुनने के लिए क्लिक करें",
+            upload_hint: "अधिकतम आकार 10MB (JPG, PNG, PDF)",
+            uploading_file: "सर्वर पर सुरक्षित रूप से फ़ाइल अपलोड हो रही है...",
+            file_attached: "फ़ाइल संलग्न",
+            btn_delete: "हटाएं",
+            current_wallet_balance: "आपका वर्तमान वॉलेट शेष:",
+            total_payable_amount: "कुल देय राशि:",
+            insufficient_balance_alert: "⚠️ वॉलेट बैलेंस अपर्याप्त है!",
+            btn_recharge_wallet: "वॉलेट रिचार्ज करें",
+            btn_confirm_pay: "🔒 पुष्टि करें और वॉलेट से भुगतान करें",
+            orders_title: "📦 मेरे आदेश और कार्यक्षेत्र",
+            btn_refresh: "🔄 ताज़ा करें",
+            filter_all: "सभी",
+            filter_active: "प्रगति में",
+            filter_completed: "पूर्ण",
+            no_orders_yet: "आपने अभी तक कोई आदेश नहीं दिया है!",
+            start_order_hint: "कैटलॉग से एक सेवा चुनें और अपना ऑर्डर शुरू करें।",
+            step_registered: "ऑर्डर और भुगतान",
+            step_processing: "प्रसंस्करण",
+            step_delivered: "वितरित",
+            delivery_ready: "🎉 आपकी अंतिम फ़ाइल तैयार है!",
+            btn_download_file: "📥 सीधी फ़ाइल डाउनलोड करें",
+            support_notes: "सपोर्ट नोट:",
+            order_date_label: "दिनांक:",
+            wallet_header_title: "Botsaller Crypto Wallet",
+            available_balance: "उपलब्ध शेष राशि:",
+            auto_confirm_label: "स्वचालित सत्यापन",
+            active_badge: "सक्रिय (TRC20 / BEP20)",
+            topup_title: "⚡ वॉलेट रिचार्ज और जमा",
+            net_trc20_name: "USDT TRC20 (Tron)",
+            net_bep20_name: "USDT BEP20 (BSC)",
+            deposit_addr_label: "जमा पता ",
+            btn_copy: "कॉपी",
+            submit_txid_title: "ट्रांजेक्शन हैश दर्ज करें (TXID):",
+            submit_txid_hint: "USDT भेजने के बाद स्वचालित सत्यापन के लिए TxHash यहां दर्ज करें।",
+            txid_placeholder: "ट्रांजेक्शन हैश (TxHash / TXID)",
+            btn_submit_hash: "हैश दर्ज करें",
+            tx_history_title: "लेन-देन इतिहास",
+            no_tx_history: "कोई लेन-देन नहीं मिला।",
+            account_info_title: "खाता विवरण और सुरक्षा कुंजी",
+            api_token_label: "सपोर्ट / API टोकन:",
+            language_selector_title: "Language / भाषा चुनें",
+            support_section_title: "सहायता केंद्र",
+            btn_chat_support: "💬 टेलीग्राम पर सहायता चैट",
+            nav_catalog: "सेवाएं",
+            nav_portfolio: "नमूने",
+            nav_orders: "ऑर्डर",
+            nav_wallet: "वॉलेट",
+            nav_profile: "प्रोफ़ाइल",
+            toast_code_copied: "ऑर्डर कोड कॉपी हो गया!",
+            toast_addr_copied: "वॉलेट पता कॉपी हो गया!",
+            toast_token_copied: "टोकन क्लिपबोर्ड में कॉपी हो गया!",
+            toast_lang_updated: "भाषा सफलतापूर्वक अपडेट की गई!",
+            toast_copied: "कॉपी हो गया!",
+            toast_file_uploaded: "फ़ाइल सफलतापूर्वक अपलोड हो गई।",
+            toast_order_success: "ऑर्डर सफलतापूर्वक दर्ज हो गया!"
+        }
+    };
+
+    const { createApp, ref, computed, onMounted, watch } = Vue;
+
+    createApp({
+        delimiters: ['[[', ']]'],
+        setup() {
+            const tg = window.Telegram?.WebApp;
+            const botUsername = ref('{{ bot_username }}');
+            const isAuthorized = ref(false);
+            const authChecking = ref(true);
+
+            <!-- Multilingual Support (English Only) -->
+            const availableLanguages = [
+                { code: 'en', name: 'English', native: 'English', flag: '🇬🇧', dir: 'ltr' }
+            ];
+
+            const currentLang = ref('en');
+            const currentDir = computed(() => 'ltr');
+
+            const t = (key, fallback = '') => {
+                const lang = currentLang.value || 'en';
+                const dict = TRANSLATIONS[lang] || TRANSLATIONS['en'] || TRANSLATIONS['fa'] || {};
+                return dict[key] || TRANSLATIONS['en'][key] || TRANSLATIONS['fa'][key] || fallback || key;
+            };
+
+            // State
+            const activeTab = ref('catalog');
+            const token = ref(localStorage.getItem('webapp_token') || '');
+            const userProfile = ref({
+                first_name: '',
+                username: '',
+                telegram_id: '',
+                language_code: currentLang.value,
+                wallet_balance: 0.0,
+                api_token: ''
+            });
+
+            const categoriesTree = ref([]);
+            const allServices = ref([]);
+            const loadingCategories = ref(true);
+            const searchQuery = ref('');
+            const selectedCategoryFilter = ref(null);
+
+            // Form Wizard state
+            const currentService = ref({});
+            const currentFormFields = ref([]);
+            const loadingFields = ref(false);
+            const orderFormData = ref({});
+            const uploadedFileNames = ref({});
+            const uploadingFiles = ref({});
+            const submittingOrder = ref(false);
+
+            // Orders Desk state
+            const ordersList = ref([]);
+            const loadingOrders = ref(false);
+            const orderStatusFilter = ref('all');
+
+            // Portfolio state
+            const portfolioItems = ref([]);
+            const loadingPortfolio = ref(false);
+            const selectedPortfolioFilter = ref(null);
+            const portfolioModalItem = ref(null);
+
+            // Wallet state
+            const selectedNetwork = ref('TRC20');
+            const walletDepositAddresses = ref({ TRC20: '', BEP20: '' });
+            const walletTransactions = ref([]);
+            const txHashInput = ref('');
+            const submittingTx = ref(false);
+
+            // Toast alert
+            const toast = ref({ show: false, message: '', type: 'info' });
+            const showToast = (message, type = 'info') => {
+                toast.value = { show: true, message, type };
+                setTimeout(() => { toast.value.show = false; }, 3500);
+            };
+
+            // Haptic feedback helper
+            const triggerHaptic = (type = 'light') => {
+                try {
+                    if (tg?.HapticFeedback) {
+                        if (type === 'selection') tg.HapticFeedback.selectionChanged();
+                        else if (type === 'light') tg.HapticFeedback.impactOccurred('light');
+                        else if (type === 'medium') tg.HapticFeedback.impactOccurred('medium');
+                        else if (type === 'success') tg.HapticFeedback.notificationOccurred('success');
+                        else if (type === 'error') tg.HapticFeedback.notificationOccurred('error');
+                    }
+                } catch (e) {}
+            };
+
+            const userInitial = computed(() => {
+                const name = userProfile.value.first_name || 'U';
+                return name.charAt(0).toUpperCase();
+            });
+
+            const rootCategories = computed(() => categoriesTree.value);
+
+            const filteredServices = computed(() => {
+                return allServices.value.filter(s => {
+                    const matchesCategory = selectedCategoryFilter.value === null || s.parent_id === selectedCategoryFilter.value;
+                    const q = searchQuery.value.trim().toLowerCase();
+                    const matchesSearch = !q || s.title.toLowerCase().includes(q) || (s.description && s.description.toLowerCase().includes(q));
+                    return matchesCategory && matchesSearch;
+                });
+            });
+
+            const activeOrdersCount = computed(() => {
+                return ordersList.value.filter(o => ['paid_in_queue', 'in_progress', 'needs_review'].includes(o.status)).length;
+            });
+
+            const completedOrdersCount = computed(() => {
+                return ordersList.value.filter(o => o.status === 'completed').length;
+            });
+
+            const filteredOrders = computed(() => {
+                if (orderStatusFilter.value === 'active') {
+                    return ordersList.value.filter(o => ['paid_in_queue', 'in_progress', 'needs_review'].includes(o.status));
+                }
+                if (orderStatusFilter.value === 'completed') {
+                    return ordersList.value.filter(o => o.status === 'completed');
+                }
+                return ordersList.value;
+            });
+
+            const currentAddress = computed(() => {
+                return walletDepositAddresses.value[selectedNetwork.value] || '';
+            });
+
+            const formatNumber = (num) => {
+                return Number(num || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            };
+
+            const copyToClipboard = (text, successMsg) => {
+                if (!text) return;
+                navigator.clipboard.writeText(text).then(() => {
+                    triggerHaptic('success');
+                    showToast(successMsg || t('toast_copied'), 'success');
+                });
+            };
+
+            // API Helper with headers
+            const apiRequest = async (url, options = {}) => {
+                const headers = options.headers || {};
+                if (token.value) {
+                    headers['Authorization'] = `Bearer ${token.value}`;
+                }
+                if (tg?.initData) {
+                    headers['X-Telegram-Init-Data'] = tg.initData;
+                }
+                options.headers = headers;
+                const res = await fetch(url, options);
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({ detail: 'Server Error' }));
+                    throw new Error(err.detail || 'Connection error');
+                }
+                return res.json();
+            };
+
+            // Set language helper
+            const applyLanguage = (code) => {
+                if (!availableLanguages.some(l => l.code === code)) return;
+                currentLang.value = code;
+                userProfile.value.language_code = code;
+                document.documentElement.setAttribute('dir', code === 'fa' ? 'rtl' : 'ltr');
+                document.documentElement.setAttribute('lang', code);
+                localStorage.setItem('webapp_lang', code);
+            };
+
+            // 1. Authenticate Strictly with Telegram initData
+            const authenticate = async () => {
+                authChecking.value = true;
+                try {
+                    const initData = tg?.initData || '';
+                    if (!initData) {
+                        isAuthorized.value = false;
+                        return false;
+                    }
+                    const res = await fetch('/api/v1/webapp/auth', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            init_data: initData,
+                            lang: currentLang.value
+                        })
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        token.value = data.token;
+                        localStorage.setItem('webapp_token', data.token);
+                        userProfile.value = data.user;
+                        isAuthorized.value = true;
+                        
+                        // Apply user's language and direction from profile
+                        const lang = data.user.language_code || currentLang.value || 'en';
+                        applyLanguage(lang);
+                        return true;
+                    } else {
+                        isAuthorized.value = false;
+                        return false;
+                    }
+                } catch (e) {
+                    console.error('Auth verification failed:', e);
+                    isAuthorized.value = false;
+                    return false;
+                } finally {
+                    authChecking.value = false;
+                }
+            };
+
+            // 2. Load Categories
+            const loadCategories = async () => {
+                loadingCategories.value = true;
+                try {
+                    const lang = currentLang.value || 'en';
+                    const data = await apiRequest(`/api/v1/webapp/categories?lang=${lang}`);
+                    categoriesTree.value = data.tree || [];
+                    allServices.value = data.all_services || [];
+                } catch (e) {
+                    showToast(e.message, 'error');
+                } finally {
+                    loadingCategories.value = false;
+                }
+            };
+
+            // 3. Open Service Form Wizard
+            const openServiceForm = async (service) => {
+                triggerHaptic('medium');
+                currentService.value = service;
+                activeTab.value = 'wizard';
+                orderFormData.value = {};
+                uploadedFileNames.value = {};
+                loadingFields.value = true;
+
+                try {
+                    const lang = currentLang.value || 'en';
+                    const data = await apiRequest(`/api/v1/webapp/categories/${service.id}/fields?lang=${lang}`);
+                    currentFormFields.value = data.fields || [];
+                } catch (e) {
+                    showToast(e.message, 'error');
+                } finally {
+                    loadingFields.value = false;
+                }
+            };
+
+            // Change Language handler
+            const changeLanguage = async (code) => {
+                triggerHaptic('medium');
+                try {
+                    applyLanguage(code);
+                    await apiRequest('/api/v1/webapp/profile/language', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ language_code: code })
+                    });
+                    
+                    await Promise.all([
+                        loadCategories(),
+                        activeTab.value === 'orders' ? loadOrders() : Promise.resolve(),
+                        activeTab.value === 'wallet' ? loadWallet() : Promise.resolve(),
+                        activeTab.value === 'portfolio' ? loadPortfolio() : Promise.resolve()
+                    ]);
+                    triggerHaptic('success');
+                    showToast(t('toast_lang_updated'), 'success');
+                } catch (e) {
+                    triggerHaptic('error');
+                    showToast(e.message, 'error');
+                }
+            };
+
+            const closeServiceForm = () => {
+                triggerHaptic('light');
+                activeTab.value = 'catalog';
+            };
+
+            // 4. File Upload Handler
+            const handleFileUpload = async (event, fieldKey) => {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                uploadingFiles.value[fieldKey] = true;
+                const formData = new FormData();
+                formData.append('file', file);
+
+                try {
+                    const res = await fetch('/api/v1/webapp/upload', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token.value}`,
+                            ...(tg?.initData ? { 'X-Telegram-Init-Data': tg.initData } : {})
+                        },
+                        body: formData
+                    });
+                    if (!res.ok) throw new Error('Upload failed.');
+                    const result = await res.json();
+                    orderFormData.value[fieldKey] = result.file_url;
+                    uploadedFileNames.value[fieldKey] = file.name;
+                    triggerHaptic('success');
+                    showToast(t('toast_file_uploaded'), 'success');
+                } catch (e) {
+                    triggerHaptic('error');
+                    showToast(e.message, 'error');
+                } finally {
+                    uploadingFiles.value[fieldKey] = false;
+                }
+            };
+
+            // 5. Submit Order
+            const submitOrder = async () => {
+                triggerHaptic('medium');
+                submittingOrder.value = true;
+
+                try {
+                    const res = await apiRequest('/api/v1/webapp/orders', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            category_id: currentService.value.id,
+                            form_data: orderFormData.value
+                        })
+                    });
+
+                    triggerHaptic('success');
+                    showToast(res.message || t('toast_order_success'), 'success');
+
+                    // Refresh profile balance and orders
+                    authenticate();
+                    loadOrders();
+
+                    // Switch to orders tab
+                    activeTab.value = 'orders';
+                } catch (e) {
+                    triggerHaptic('error');
+                    showToast(e.message, 'error');
+                } finally {
+                    submittingOrder.value = false;
+                }
+            };
+
+            // 6. Load Orders
+            const loadOrders = async () => {
+                loadingOrders.value = true;
+                try {
+                    const lang = currentLang.value || 'en';
+                    const data = await apiRequest(`/api/v1/webapp/orders?lang=${lang}`);
+                    ordersList.value = data.orders || [];
+                } catch (e) {
+                    console.error(e);
+                } finally {
+                    loadingOrders.value = false;
+                }
+            };
+
+            // 7. Load Wallet Info & Render QR
+            const loadWallet = async () => {
+                try {
+                    const lang = currentLang.value || 'en';
+                    const data = await apiRequest(`/api/v1/webapp/wallet?lang=${lang}`);
+                    userProfile.value.wallet_balance = data.balance;
+                    walletDepositAddresses.value = data.deposit_addresses || {};
+                    walletTransactions.value = data.transactions || [];
+                    renderQRCode();
+                } catch (e) {
+                    console.error(e);
+                }
+            };
+
+            const renderQRCode = () => {
+                setTimeout(() => {
+                    const addr = currentAddress.value;
+                    const canvas = document.getElementById('qr-canvas');
+                    if (canvas && addr && window.QRious) {
+                        new QRious({
+                            element: canvas,
+                            value: addr,
+                            size: 140,
+                            level: 'H'
+                        });
+                    }
+                }, 100);
+            };
+
+            watch(selectedNetwork, () => {
+                renderQRCode();
+            });
+
+            watch(activeTab, (newTab) => {
+                if (newTab === 'wallet') loadWallet();
+                if (newTab === 'orders') loadOrders();
+                if (newTab === 'portfolio') loadPortfolio();
+            });
+
+            // Portfolio methods
+            const loadPortfolio = async () => {
+                loadingPortfolio.value = true;
+                try {
+                    const lang = currentLang.value || 'en';
+                    const url = selectedPortfolioFilter.value
+                        ? `/api/v1/webapp/portfolio?category_id=${selectedPortfolioFilter.value}&lang=${lang}`
+                        : `/api/v1/webapp/portfolio?lang=${lang}`;
+                    const data = await apiRequest(url);
+                    portfolioItems.value = data.items || [];
+                } catch (e) {
+                    console.error('Error loading portfolio:', e);
+                } finally {
+                    loadingPortfolio.value = false;
+                }
+            };
+
+            const filteredPortfolioItems = computed(() => {
+                if (selectedPortfolioFilter.value === null) {
+                    return portfolioItems.value;
+                }
+                return portfolioItems.value.filter(item => item.category_id === selectedPortfolioFilter.value);
+            });
+
+            const openPortfolioModal = (item) => {
+                triggerHaptic('medium');
+                portfolioModalItem.value = item;
+            };
+
+            const closePortfolioModal = () => {
+                triggerHaptic('light');
+                portfolioModalItem.value = null;
+            };
+
+            const orderFromPortfolio = (item) => {
+                triggerHaptic('medium');
+                closePortfolioModal();
+                if (!item.category_id) {
+                    activeTab.value = 'catalog';
+                    return;
+                }
+                const service = allServices.value.find(s => s.id === item.category_id);
+                if (service) {
+                    openServiceForm(service);
+                } else {
+                    openServiceForm({
+                        id: item.category_id,
+                        title: item.category_title || item.title,
+                        price: item.category_price || 0.0,
+                        description: item.description || ''
+                    });
+                }
+            };
+
+            const submitTransactionHash = async () => {
+                if (!txHashInput.value.trim()) return;
+                submittingTx.value = true;
+                triggerHaptic('medium');
+
+                try {
+                    const res = await apiRequest('/api/v1/webapp/wallet/submit-tx', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            tx_hash: txHashInput.value.trim(),
+                            network: selectedNetwork.value
+                        })
+                    });
+
+                    triggerHaptic('success');
+                    showToast(res.message, 'success');
+                    txHashInput.value = '';
+                    loadWallet();
+                } catch (e) {
+                    triggerHaptic('error');
+                    showToast(e.message, 'error');
+                } finally {
+                    submittingTx.value = false;
+                }
+            };
+
+            onMounted(async () => {
+                if (tg) {
+                    tg.ready();
+                    tg.expand();
+                }
+
+                // Initial language resolution:
+                // 1. URL search param (?lang=...)
+                // 2. localStorage ('webapp_lang')
+                // 3. Telegram WebApp user object
+                const urlParams = new URLSearchParams(window.location.search);
+                const paramLang = urlParams.get('lang');
+                const savedLang = localStorage.getItem('webapp_lang');
+                const tgUserLang = tg?.initDataUnsafe?.user?.language_code;
+
+                applyLanguage('en');
+
+                const ok = await authenticate();
+                if (ok) {
+                    await loadCategories();
+                    loadOrders();
+                }
+            });
+
+            return {
+                tg,
+                botUsername,
+                isAuthorized,
+                authChecking,
+                activeTab,
+                userProfile,
+                userInitial,
+                toast,
+                showToast,
+                triggerHaptic,
+                formatNumber,
+                copyToClipboard,
+
+                // i18n
+                t,
+                currentLang,
+                currentDir,
+                availableLanguages,
+                changeLanguage,
+
+                // Catalog
+                categoriesTree,
+                rootCategories,
+                allServices,
+                filteredServices,
+                loadingCategories,
+                searchQuery,
+                selectedCategoryFilter,
+
+                // Wizard
+                currentService,
+                currentFormFields,
+                loadingFields,
+                orderFormData,
+                uploadedFileNames,
+                uploadingFiles,
+                submittingOrder,
+                openServiceForm,
+                closeServiceForm,
+                handleFileUpload,
+                submitOrder,
+
+                // Orders
+                ordersList,
+                filteredOrders,
+                loadingOrders,
+                orderStatusFilter,
+                activeOrdersCount,
+                completedOrdersCount,
+                loadOrders,
+
+                // Portfolio
+                portfolioItems,
+                filteredPortfolioItems,
+                loadingPortfolio,
+                selectedPortfolioFilter,
+                portfolioModalItem,
+                loadPortfolio,
+                openPortfolioModal,
+                closePortfolioModal,
+                orderFromPortfolio,
+
+                // Wallet
+                selectedNetwork,
+                walletDepositAddresses,
+                currentAddress,
+                walletTransactions,
+                txHashInput,
+                submittingTx,
+                loadWallet,
+                submitTransactionHash
+            };
+        }
+    }).mount('#app');
+</script>
+
+</body>
+</html>
